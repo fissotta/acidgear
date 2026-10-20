@@ -1,0 +1,9 @@
+{
+  "name": "acidgear-server",
+  "version": "0.9.0",
+  "description": "Servidor de salas (relay WebSocket) + archivos estáticos para ACID GEAR: XTREME LITHO-STRIKE",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "dependencies": { "ws": "^8.18.0" },
+  "license": "MIT"
+}

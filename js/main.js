@@ -1,0 +1,209 @@
+// Bucle principal, pantallas (título, lobby online, selección, pelea, resultado).
+const Game = {
+  screen: 'title', canvas: null, ctx: null, acc: 0, last: 0, menuIdx: 0, level: 2, mode: '1p',
+  sel: { cur: [0, 1], done: [false, false], t: 0 }, st: null, seed: 0, vsT: 0, online: false, netInfo: '',
+  VERSION: '0.9.0',
+  MENU: [['1 JUGADOR vs CPU', '1p'], ['2 JUGADORES (mismo teclado)', '2p'], ['ONLINE sin servidor (WebRTC, código de sala)', 'peer'], ['ONLINE con servidor WebSocket (tu Ubuntu)', 'ws'], ['NIVEL CPU: ', 'level']],
+
+  init() {
+    this.canvas = document.getElementById('game'); this.ctx = this.canvas.getContext('2d');
+    Input.init(); this.resize(); window.addEventListener('resize', () => this.resize());
+    const unlock = () => { Audio.init(); Audio.resume(); if (!Audio.music.on && this.screen === 'title') Audio.playMusic('menu', 3); };
+    window.addEventListener('keydown', unlock); window.addEventListener('pointerdown', unlock);
+    this.canvas.addEventListener('click', e => this.click(e));
+    document.getElementById('btn-host').onclick = () => { const code = Net.code(); document.getElementById('room-code').textContent = code; Net.hostPeer(code); };
+    document.getElementById('btn-join').onclick = () => { const code = document.getElementById('join-code').value.trim().toUpperCase(); if (code.length === 4) Net.joinPeer(code); };
+    document.getElementById('btn-ws').onclick = () => { const url = document.getElementById('ws-url').value.trim(); const room = document.getElementById('ws-room').value.trim() || 'sala1'; Net.connectWS(url, room); };
+    document.getElementById('btn-back').onclick = () => { Net.close(); this.goTitle(); };
+    Net.onStatus = s => { document.getElementById('net-status').textContent = s; if (Net.connected && this.screen === 'lobby') this.goSelect(true); };
+    Net.onMessage = d => this.onNet(d);
+    document.getElementById('vol').oninput = e => Audio.setVolume(parseFloat(e.target.value));
+    requestAnimationFrame(t => this.loop(t));
+  },
+  resize() { const s = Math.min(window.innerWidth / 960, (window.innerHeight - 10) / 540); this.canvas.style.width = Math.floor(960 * s) + 'px'; this.canvas.style.height = Math.floor(540 * s) + 'px'; },
+  overlay(id, show) { document.getElementById(id).style.display = show ? 'block' : 'none'; },
+
+  loop(t) {
+    const dt = Math.min(0.1, (t - this.last) / 1000); this.last = t; this.acc += dt;
+    let steps = 0;
+    while (this.acc >= 1 / 60 && steps < 4) { this.acc -= 1 / 60; this.update(); steps++; }
+    this.render(); requestAnimationFrame(tt => this.loop(tt));
+  },
+
+  // ---------- título ----------
+  goTitle() { this.screen = 'title'; this.online = false; this.overlay('lobby', false); if (Audio.ctx) Audio.playMusic('menu', 3); Input.flush(); },
+  updateTitle() {
+    const n = this.MENU.length;
+    if (Input.once('ArrowUp') || Input.once('KeyW')) { this.menuIdx = (this.menuIdx + n - 1) % n; Audio.sfx('move'); }
+    if (Input.once('ArrowDown') || Input.once('KeyS')) { this.menuIdx = (this.menuIdx + 1) % n; Audio.sfx('move'); }
+    if (Input.once('ArrowLeft') || Input.once('ArrowRight') || Input.once('KeyA') || Input.once('KeyD')) { if (this.MENU[this.menuIdx][1] === 'level') { this.level = this.level % 3 + 1; Audio.sfx('move'); } }
+    if (Input.once('Enter') || Input.once('KeyJ') || Input.once('Space')) this.chooseMenu(this.MENU[this.menuIdx][1]);
+  },
+  chooseMenu(m) {
+    Audio.sfx('select');
+    if (m === 'level') { this.level = this.level % 3 + 1; return; }
+    this.mode = m;
+    if (m === 'peer' || m === 'ws') { this.screen = 'lobby'; this.overlay('lobby', true); this.overlay('lobby-peer', m === 'peer'); this.overlay('lobby-ws', m === 'ws'); document.getElementById('net-status').textContent = ''; return; }
+    this.goSelect(false);
+  },
+  click(e) {
+    const r = this.canvas.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width * 960, y = (e.clientY - r.top) / r.height * 540;
+    if (this.screen === 'title') { const i = Math.floor((y - 300) / 34); if (i >= 0 && i < this.MENU.length) { this.menuIdx = i; this.chooseMenu(this.MENU[i][1]); } }
+    else if (this.screen === 'select') { const g = this.gridAt(x, y); if (g >= 0 && !this.sel.done[0]) { this.sel.cur[0] = g; this.confirmSel(0); } }
+    else if (this.screen === 'result') this.afterResult(true);
+  },
+
+  // ---------- selección ----------
+  goSelect(online) {
+    this.online = online; this.screen = 'select'; this.overlay('lobby', false);
+    this.sel = { cur: [0, 12], done: [false, false], t: 0, remote: null }; Input.flush();
+    if (Audio.ctx && !Audio.music.on) Audio.playMusic('menu', 3);
+  },
+  gridAt(x, y) { const col = Math.floor((x - 30) / 100), row = Math.floor((y - 120) / 100); if (col < 0 || col > 8 || row < 0 || row > 1) return -1; const i = row * 9 + col; return i < ROSTER.length ? i : -1; },
+  moveCursor(p, dx, dy) { let i = this.sel.cur[p]; let col = i % 9, row = Math.floor(i / 9); col = (col + dx + 9) % 9; row = (row + dy + 2) % 2; let j = row * 9 + col; if (j >= ROSTER.length) j = dy ? (row === 1 ? 0 * 9 + col : ROSTER.length - 1) : (dx > 0 ? row * 9 : ROSTER.length - 1); this.sel.cur[p] = Math.min(j, ROSTER.length - 1); Audio.sfx('move'); },
+  confirmSel(p) { if (this.sel.done[p]) return; this.sel.done[p] = true; Audio.lick(ROSTER[this.sel.cur[p]].lick, 52); if (this.online) Net.send({ t: 'sel', i: this.sel.cur[p], done: true }); },
+  updateSelect() {
+    this.sel.t++;
+    if (Input.once('Escape')) { Net.close(); this.goTitle(); return; }
+    const local = this.online ? [Net.side] : this.mode === '2p' ? [0, 1] : [0];
+    for (const p of local) {
+      const keys = (!this.online && p === 1) ? ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ['Numpad1', 'KeyB', 'NumpadEnter']] : ['KeyA', 'KeyD', 'KeyW', 'KeyS', ['KeyJ', 'Enter', 'Space']];
+      if (!this.sel.done[p]) {
+        if (Input.once(keys[0])) this.moveCursor(p, -1, 0); if (Input.once(keys[1])) this.moveCursor(p, 1, 0);
+        if (Input.once(keys[2])) this.moveCursor(p, 0, -1); if (Input.once(keys[3])) this.moveCursor(p, 0, 1);
+        if (keys[4].some(k => Input.once(k))) this.confirmSel(p);
+        if (this.online && this.sel.t % 6 === 0) Net.send({ t: 'sel', i: this.sel.cur[p], done: false });
+      } else if (keys[4].some(k => Input.once(k)) && this.mode === '1p' && this.sel.done[1]) { /* nada */ }
+    }
+    if (this.mode === '1p' && this.sel.done[0] && !this.sel.done[1]) { if (this.sel.t % 4 === 0) this.sel.cur[1] = Math.floor(Math.random() * ROSTER.length); if (!this.sel.cpuT) this.sel.cpuT = this.sel.t + 60; if (this.sel.t >= this.sel.cpuT) { this.sel.done[1] = true; Audio.lick(ROSTER[this.sel.cur[1]].lick, 52); } }
+    if (this.sel.done[0] && this.sel.done[1]) {
+      if (!this.sel.goT) this.sel.goT = this.sel.t + 40;
+      if (this.sel.t >= this.sel.goT) {
+        if (this.online) { if (Net.side === 0) { const seed = (Date.now() & 0x7fffffff) >>> 0; const delay = Math.max(2, Math.min(8, Math.ceil(Net.rtt / 2 / 16.7) + 1)); Net.send({ t: 'start', seed, delay, ids: [ROSTER[this.sel.cur[0]].id, ROSTER[this.sel.cur[1]].id] }); this.startFight(seed, [ROSTER[this.sel.cur[0]].id, ROSTER[this.sel.cur[1]].id], delay); } }
+        else this.startFight((Date.now() & 0x7fffffff) >>> 0, [ROSTER[this.sel.cur[0]].id, ROSTER[this.sel.cur[1]].id], 0);
+      }
+    }
+  },
+  onNet(d) {
+    if (d.t === 'sel') { const p = 1 - Net.side; this.sel.cur[p] = d.i; if (d.done) { if (!this.sel.done[p]) Audio.lick(ROSTER[d.i].lick, 52); this.sel.done[p] = true; } }
+    else if (d.t === 'start') { this.sel.done = [true, true]; this.startFight(d.seed, d.ids, d.delay); }
+    else if (d.t === 'i') { Lockstep.onRemote(d.f, d.b); }
+    else if (d.t === 'rematch') { this.goSelect(true); }
+  },
+
+  // ---------- pelea ----------
+  startFight(seed, ids, delay) {
+    const rng = RNG.make(seed); const stage = rng.int(STAGES.length);
+    this.seed = seed; this.st = Engine.newState(seed, stage, ids, { rounds: 3 });
+    Render.reset(); Particles.reset(STAGES[stage].particles);
+    if (this.online) Lockstep.start(Net.side, delay);
+    this.screen = 'vs'; this.vsT = 0; Input.flush();
+    Audio.stopMusic();
+  },
+  updateFight() {
+    if (!this.online && Input.once('Escape')) { this.goTitle(); return; }
+    const st = this.st;
+    if (st.phase === 'end') { this.screen = 'result'; this.resultT = 0; Audio.playMusic('win', 5); Input.flush(); return; }
+    let bits;
+    if (this.online) {
+      const r = Lockstep.tick(Input.read(0)); this.netInfo = 'ping ' + Math.round(Net.rtt) + ' ms · retraso ' + Lockstep.delay + ' f' + (Lockstep.stalled > 5 ? ' · esperando…' : '');
+      if (!r) return; bits = r;
+    } else bits = [Input.read(0), this.mode === '2p' ? Input.read(1) : CPU.decide(st, 1, this.level)];
+    Engine.step(st, bits[0], bits[1]); Render.consume(st);
+    for (const f of st.f) if (f.st === 'jump' && f.t === 1) Audio.sfx('jump');
+  },
+  afterResult(rematch) {
+    if (this.online) { Net.send({ t: 'rematch' }); this.goSelect(true); }
+    else if (rematch) this.goSelect(false); else this.goTitle();
+  },
+
+  update() {
+    if (this.screen === 'title') this.updateTitle();
+    else if (this.screen === 'select') this.updateSelect();
+    else if (this.screen === 'vs') { this.vsT++; if (this.vsT === 1) Audio.sfx('round'); if (this.vsT > 110) { this.screen = 'fight'; Audio.playMusic(STAGES[this.st.stage], this.seed); } }
+    else if (this.screen === 'fight') this.updateFight();
+    else if (this.screen === 'result') { this.resultT++; if (this.resultT > 30 && (Input.once('Enter') || Input.once('KeyJ') || Input.once('Space'))) this.afterResult(true); if (Input.once('Escape')) { Net.close(); this.goTitle(); } }
+  },
+
+  // ---------- dibujo de pantallas ----------
+  render() {
+    const ctx = this.ctx; ctx.clearRect(0, 0, 960, 540);
+    if (this.screen === 'title' || this.screen === 'lobby') this.drawTitle(ctx);
+    else if (this.screen === 'select') this.drawSelect(ctx);
+    else if (this.screen === 'vs') this.drawVS(ctx);
+    else if (this.screen === 'fight' || this.screen === 'result') { Render.draw(ctx, this.st, { netInfo: this.online ? this.netInfo : '' }); if (this.screen === 'result') this.drawResult(ctx); }
+  },
+  logo(ctx, y, scale = 1) {
+    ctx.save(); ctx.translate(480, y); ctx.scale(scale, scale); ctx.textAlign = 'center';
+    ctx.font = 'italic bold 78px Impact, Arial Black, Arial'; ctx.lineWidth = 10; ctx.strokeStyle = '#1a1018'; ctx.strokeText('ACID GEAR', 0, 0);
+    const g = ctx.createLinearGradient(0, -60, 0, 10); g.addColorStop(0, '#fff176'); g.addColorStop(0.5, '#ff8c1a'); g.addColorStop(1, '#c2185b'); ctx.fillStyle = g; ctx.fillText('ACID GEAR', 0, 0);
+    ctx.font = 'bold 26px Impact, Arial Black, Arial'; ctx.lineWidth = 6; ctx.strokeText('XTREME LITHO-STRIKE', 0, 36); ctx.fillStyle = '#b9ff3c'; ctx.fillText('XTREME LITHO-STRIKE', 0, 36);
+    ctx.restore();
+  },
+  drawTitle(ctx) {
+    const t = Render.t++;
+    const g = ctx.createLinearGradient(0, 0, 0, 540); g.addColorStop(0, '#1a0a2e'); g.addColorStop(1, '#3a1020'); ctx.fillStyle = g; ctx.fillRect(0, 0, 960, 540);
+    // burbujas ácidas de fondo
+    ctx.fillStyle = 'rgba(185,255,60,0.12)'; for (let i = 0; i < 30; i++) { const x = (i * 97) % 960, y = 540 - ((t * (0.5 + (i % 5) * 0.3) + i * 60) % 600); ctx.beginPath(); ctx.arc(x, y, 6 + (i % 7) * 4, 0, 7); ctx.fill(); }
+    // dos luchadores de muestra
+    const a = Engine.newFighter(ROSTER[(Math.floor(t / 300)) % ROSTER.length].id, 0), b = Engine.newFighter(ROSTER[(Math.floor(t / 300) + 9) % ROSTER.length].id, 1); b.face = -1;
+    a.st = 'idle'; b.st = 'idle'; a.t = b.t = t; FighterDraw.draw(ctx, a, t, 150, 470, 1.1); FighterDraw.draw(ctx, b, t, 810, 470, 1.1);
+    this.logo(ctx, 150, 1);
+    ctx.textAlign = 'center'; ctx.fillStyle = '#ccc'; ctx.font = '13px Arial'; ctx.fillText('17 taxa de la clase Acidithiobacillia (Moya-Beltrán et al. 2021, ISME J) · 20 escenarios extremófilos', 480, 215);
+    for (let i = 0; i < this.MENU.length; i++) {
+      const sel = i === this.menuIdx; ctx.fillStyle = sel ? '#ffd34d' : '#fff'; ctx.font = (sel ? 'bold ' : '') + '20px Arial';
+      let txt = this.MENU[i][0]; if (this.MENU[i][1] === 'level') txt += ['FÁCIL', 'NORMAL', 'DIFÍCIL'][this.level - 1] + '  (←/→)';
+      ctx.fillText((sel ? '▶ ' : '') + txt, 480, 322 + i * 34);
+    }
+    ctx.fillStyle = '#888'; ctx.font = '12px Arial'; ctx.fillText('W/S o ↑/↓ para elegir · Enter para confirmar · 3 rounds de 2:00 · v' + this.VERSION, 480, 520);
+    if (this.screen === 'lobby') { ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, 960, 540); }
+  },
+  drawSelect(ctx) {
+    const t = Render.t++;
+    const g = ctx.createLinearGradient(0, 0, 960, 540); g.addColorStop(0, '#12082a'); g.addColorStop(1, '#2a0a1a'); ctx.fillStyle = g; ctx.fillRect(0, 0, 960, 540);
+    ctx.textAlign = 'center'; ctx.fillStyle = '#ffd34d'; ctx.font = 'italic bold 30px Impact, Arial Black, Arial'; ctx.fillText('ELIGE TU TAXÓN', 480, 48);
+    ctx.fillStyle = '#aaa'; ctx.font = '12px Arial'; ctx.fillText(this.online ? 'Tú eres el jugador ' + (Net.side + 1) + ' · WASD mueve · J confirma · ping ' + Math.round(Net.rtt) + ' ms' : 'P1: WASD + J   ·   P2: flechas + Numpad1 (o B)   ·   Esc vuelve', 480, 70);
+    // grilla 9x2
+    for (let i = 0; i < ROSTER.length; i++) {
+      const r = ROSTER[i], col = i % 9, row = Math.floor(i / 9), x = 30 + col * 100, y = 120 + row * 100;
+      ctx.fillStyle = CLADES[r.clade].col; ctx.globalAlpha = 0.35; ctx.fillRect(x, y, 92, 90); ctx.globalAlpha = 1;
+      ctx.strokeStyle = '#1a1018'; ctx.lineWidth = 3; ctx.strokeRect(x, y, 92, 90);
+      const f = Engine.newFighter(r.id, 0); f.st = 'idle'; f.t = t;
+      ctx.save(); ctx.beginPath(); ctx.rect(x, y, 92, 90); ctx.clip(); FighterDraw.draw(ctx, f, t + i * 7, x + 46, y + 88, 0.5); ctx.restore();
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.fillText(r.id, x + 46, y + 18);
+      for (let p = 0; p < 2; p++) if (this.sel.cur[p] === i) { ctx.strokeStyle = p === 0 ? '#3af' : '#f55'; ctx.lineWidth = 4; ctx.strokeRect(x - 3 + p * 2, y - 3 + p * 2, 98 - p * 4, 96 - p * 4); ctx.fillStyle = p === 0 ? '#3af' : '#f55'; ctx.font = 'bold 12px Arial'; ctx.fillText(p === 0 ? 'P1' : 'P2', x + 14 + p * 64, y + 84); }
+    }
+    // fichas grandes
+    for (let p = 0; p < 2; p++) {
+      const r = ROSTER[this.sel.cur[p]], x = p === 0 ? 40 : 920, left = p === 0;
+      const f = Engine.newFighter(r.id, p); f.st = this.sel.done[p] ? 'attack' : 'idle'; f.move = 'HP'; f.t = this.sel.done[p] ? 10 : t; f.face = left ? 1 : -1;
+      FighterDraw.draw(ctx, f, t, left ? 110 : 850, 505, 0.75);
+      ctx.textAlign = left ? 'left' : 'right'; const tx = left ? 190 : 770;
+      ctx.fillStyle = CLADES[r.clade].col; ctx.font = 'bold 26px Arial'; ctx.fillText(r.id + ' · ' + r.name, tx, 350);
+      ctx.fillStyle = '#ccc'; ctx.font = 'italic 12px Arial'; ctx.fillText(r.full, tx, 368);
+      ctx.fillStyle = '#9ad'; ctx.font = '12px Arial'; ctx.fillText(CLADES[r.clade].name + ' · ' + r.arch, tx, 386);
+      ctx.fillStyle = '#eee'; ctx.font = '12px Arial'; this.wrap(ctx, r.bio, tx, 406, 265, 15);
+      ctx.fillStyle = '#ffd34d'; ctx.font = 'bold 12px Arial'; ctx.fillText('ESPECIAL (U): ' + r.special.name, tx, 462);
+      ctx.fillStyle = '#ff4df0'; ctx.fillText('OVERDRIVE (O): ' + r.od.name, tx, 480);
+      const S = r.stats; ctx.fillStyle = '#aaa'; ctx.font = '11px Arial'; ctx.fillText('HP ' + S.hp + ' · VEL ' + S.spd.toFixed(2) + ' · POD ' + S.pow.toFixed(2) + ' · DEF ' + S.def.toFixed(2), tx, 500);
+      if (this.sel.done[p]) { ctx.fillStyle = '#b9ff3c'; ctx.font = 'bold 14px Arial'; ctx.fillText('¡LISTO!', tx, 520); }
+    }
+  },
+  wrap(ctx, text, x, y, w, lh) { const words = text.split(' '); let line = ''; for (const wd of words) { const test = line + wd + ' '; if (ctx.measureText(test).width > w && line) { ctx.fillText(line, x, y); line = wd + ' '; y += lh; } else line = test; } ctx.fillText(line, x, y); },
+  drawVS(ctx) {
+    const st = this.st, stage = STAGES[st.stage], t = this.vsT;
+    StageDraw.draw(ctx, stage, 270, Render.t++); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0, 0, 960, 540);
+    const k = Math.min(1, t / 20);
+    for (let p = 0; p < 2; p++) { const f = Engine.newFighter(st.f[p].id, p); f.st = 'attack'; f.move = p ? 'K' : 'HP'; f.t = 10; f.face = p ? -1 : 1; FighterDraw.draw(ctx, f, t, p ? 960 - 200 * k : 200 * k, 470, 1.3); }
+    ctx.textAlign = 'center'; ctx.fillStyle = '#ffd34d'; ctx.font = 'italic bold 110px Impact, Arial Black, Arial'; ctx.lineWidth = 8; ctx.strokeStyle = '#1a1018'; ctx.strokeText('VS', 480, 300); ctx.fillText('VS', 480, 300);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 28px Arial'; ctx.fillText(ROSTER_BY_ID[st.f[0].id].id, 200, 120); ctx.fillText(ROSTER_BY_ID[st.f[1].id].id, 760, 120);
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(180, 400, 600, 70);
+    ctx.fillStyle = '#ffd34d'; ctx.font = 'bold 20px Arial'; ctx.fillText(stage.name, 480, 428);
+    ctx.fillStyle = '#eee'; ctx.font = '15px Arial'; ctx.fillText(stage.place + '  ·  pH ' + stage.ph + '  ·  ' + stage.temp, 480, 454);
+  },
+  drawResult(ctx) {
+    ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 330, 960, 60);
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 18px Arial'; ctx.fillText(this.online ? 'Enter: revancha (volver a elegir)   ·   Esc: salir' : 'Enter: volver a elegir personaje   ·   Esc: título', 480, 366);
+  }
+};
+window.addEventListener('load', () => Game.init());
