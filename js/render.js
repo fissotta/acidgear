@@ -5,7 +5,7 @@ const Render = {
   // Convierte eventos del motor en efectos visuales y sonidos
   consume(st) {
     for (const e of st.events) {
-      if (e.type === 'hit') { this.spark(e.x, e.y, e.str || 1, '#fff'); Audio.sfx('hit', { str: e.str }); if (e.combo >= 2) this.combo = { side: e.side, n: e.combo, t: 90 }; }
+      if (e.type === 'hit') { this.spark(e.x, e.y, e.str || 1, '#fff'); Audio.sfx('hit', { str: e.str }); if (e.combo >= 2) this.combo = { side: e.side, n: e.combo, dmg: e.dmg, t: 90, pop: 10 }; }
       else if (e.type === 'block') { this.spark(e.x, e.y, 1, '#6cf'); Audio.sfx('block'); }
       else if (e.type === 'special') { Audio.sfx('special'); }
       else if (e.type === 'od') { this.flash = 14; this.banner = { text: e.name, sub: ROSTER_BY_ID[st.f[e.side].id].id + ' — OVERDRIVE', t: 110, col: ROSTER_BY_ID[st.f[e.side].id].c3 }; Audio.sfx('od'); }
@@ -104,7 +104,7 @@ const Render = {
     ctx.fillStyle = '#ffd34d'; ctx.font = 'bold 13px Arial'; ctx.fillText(stage.name.toUpperCase(), 48, 97);
     ctx.fillStyle = '#eee'; ctx.font = '12px Arial'; ctx.fillText(stage.place + '   ·   pH ' + stage.ph + '   ·   ' + stage.temp, 48, 115);
     // combo
-    if (this.combo && this.combo.t > 0) { this.combo.t--; const x = this.combo.side === 0 ? 60 : W - 60; ctx.textAlign = this.combo.side === 0 ? 'left' : 'right'; ctx.fillStyle = '#ff6a2a'; ctx.font = 'italic bold 30px Arial'; ctx.fillText(this.combo.n + ' HITS', x, 190); ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Arial'; ctx.fillText('COMBO DE BIOLIXIVIACIÓN', x, 206); }
+    if (this.combo && this.combo.t > 0) { this.combo.t--; const x = this.combo.side === 0 ? 60 : W - 60; ctx.textAlign = this.combo.side === 0 ? 'left' : 'right'; const pop = this.combo.pop > 0 ? this.combo.pop-- : 0; ctx.fillStyle = this.combo.n >= 8 ? '#ff4df0' : this.combo.n >= 5 ? '#ffd34d' : '#ff6a2a'; ctx.font = 'italic bold ' + (34 + pop) + 'px Impact, Arial Black, Arial'; ctx.fillText(this.combo.n + ' HITS', x, 190); ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Arial'; ctx.fillText('COMBO DE BIOLIXIVIACIÓN · ' + this.combo.dmg + ' DAÑO', x, 206); }
     // textos flotantes
     this.texts = this.texts.filter(t => t.t > 0); for (const t of this.texts) { t.t--; t.y += 1; ctx.textAlign = 'center'; ctx.fillStyle = t.col; ctx.font = 'bold 22px Arial'; ctx.fillText(t.s, this.sx(t.x), this.sy(t.y)); }
     // banner central
@@ -122,7 +122,7 @@ const Render = {
       if (!tr.hideMoves) {
         const me = ROSTER_BY_ID[st.f[0].id];
         const L = [['LISTA DE MOVIMIENTOS', ''], ['J', 'golpe ligero'], ['K', 'golpe fuerte'], ['L / I', 'patada'], ['S + K', 'lanzador (antiaéreo)'], ['S + L', 'barrida'], ['salto + J/K/L', 'golpes aéreos (overhead)'],
-          ['D, D + K', 'LITHO RUSH (embestida con armadura)'], ['S, D + J', 'PROTON SHOT (bola de ácido)'], ['U', me.special.name], ['O (medidor 100 %)', me.od.name], ['H en tu ataque', 'Lysis Cancel'], ['H al recibir golpes', 'Burst de biofilm'], ['A, A / D, D', 'dash atrás / adelante'], ['', 'cadena: J → K → L → U → O']];
+          ['D, D + K', 'LITHO RUSH (embestida con armadura)'], ['S, D + J', 'PROTON SHOT (bola de ácido)'], ['U', me.special.name], ['O (medidor 100 %)', me.od.name], ['H en tu ataque', 'Lysis Cancel'], ['H al recibir golpes', 'Burst de biofilm'], ['A, A / D, D', 'dash atrás / adelante'], ['', 'cadena: J → J → K → L → U → O'], ['W tras K / L / S+K', 'jump cancel: sigue en el aire con J/K/L']];
         const x = W - 40 - 330, y = 150; ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(x, y, 330, L.length * 17 + 12);
         L.forEach((r, i) => { const yy = y + 18 + i * 17; ctx.fillStyle = i === 0 ? '#ffd34d' : '#9ff'; ctx.font = i === 0 ? 'bold 12px Arial' : 'bold 12px Arial'; ctx.fillText(r[0], x + 10, yy); ctx.fillStyle = '#eee'; ctx.font = '12px Arial'; ctx.fillText(r[1], x + 130, yy); });
       }

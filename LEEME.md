@@ -2,7 +2,7 @@
 
 Juego de pelea 2D estilo Guilty Gear entre los 17 taxa de la clase *Acidithiobacillia* (Fig. 3A de Moya-Beltrán et al. 2021, ISME J 15:3221). Página web estática: corre en GitHub Pages sin ningún servidor, incluso el modo online de 2 jugadores.
 
-Versión 0.9.3 (oct 2026). Carpeta: `/Users/issotta/proyectos/acidgear`.
+Versión 0.9.5 (oct 2026). Carpeta: `/Users/issotta/proyectos/acidgear`.
 
 ---
 
@@ -97,7 +97,7 @@ Imprime una URL tipo `https://algo-random.trycloudflare.com`. En el juego (desde
 
 Online y 1 jugador siempre usan los controles del jugador 1. Doble toque adelante/atrás = dash. Abajo + K (fuerte) = lanzador (antiaéreo). Abajo + L (patada) = barrida (baja). Golpes en el aire = overhead (hay que bloquear de pie). Bloqueo: mantener atrás; abajo+atrás bloquea bajos.
 
-Sistemas estilo GG: los golpes se cancelan en cadena ligero → fuerte → patada → Especial → Overdrive (gatling). El **Gradiente de protones** (medidor) sube al pegar, bloquear y acercarse; al 100 % habilita el Overdrive (O). **Lysis Cancel** (H durante tu propio ataque, cuesta 50 %) cancela cualquier golpe. **Burst de biofilm** (H mientras te pegan, 1 por round) empuja al rival. Combos con escalado de daño.
+Sistemas estilo GG: los golpes se cancelan en cadena ligero → ligero → fuerte → patada → Especial → Overdrive (gatling). Tras un fuerte, una patada o el lanzador (S+K) puedes saltar (W) y seguir el combo en el aire con J/K/L (jump cancel). El contador muestra los golpes y el daño acumulado. El **Gradiente de protones** (medidor) sube al pegar, bloquear y acercarse; al 100 % habilita el Overdrive (O). **Lysis Cancel** (H durante tu propio ataque, cuesta 50 %) cancela cualquier golpe. **Burst de biofilm** (H mientras te pegan, 1 por round) empuja al rival. Combos con escalado de daño.
 
 Formato: 3 rounds de 2:00, gana el que llega a 2. Escenario al azar entre 20 (aparece el lugar, pH y temperatura).
 

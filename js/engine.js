@@ -3,11 +3,11 @@
 const ARENA_W = 1500, GRAV = 0.8, ROUND_FRAMES = 120 * 60, MAX_METER = 100;
 
 const MOVES = {
-  LP:  { s: 3,  a: 3, r: 8,  dmg: 30, hs: 12, bs: 8,  kb: 3, box: [20, 80, 60, 34], chain: ['HP', 'K', 'cHP', 'cK', 'SP', 'OD'] },
-  HP:  { s: 10, a: 5, r: 18, dmg: 90, hs: 22, bs: 14, kb: 9, box: [25, 60, 90, 55], chain: ['K', 'cK', 'SP', 'OD'] },
-  K:   { s: 8,  a: 5, r: 15, dmg: 70, hs: 18, bs: 12, kb: 7, box: [25, 20, 95, 45], chain: ['SP', 'OD'] },
-  cK:  { s: 9,  a: 5, r: 20, dmg: 60, hs: 20, bs: 12, kb: 4, box: [20, 0, 100, 30], low: true, knockdown: true, chain: ['SP', 'OD'] },
-  cHP: { s: 8,  a: 5, r: 22, dmg: 80, hs: 24, bs: 14, kb: 2, box: [10, 50, 60, 110], launch: true, chain: ['SP', 'OD'] },
+  LP:  { s: 3,  a: 3, r: 8,  dmg: 30, hs: 18, bs: 8,  kb: 3, box: [20, 80, 60, 34], adv: 6, chain: ['LP', 'HP', 'K', 'cHP', 'cK', 'SP', 'OD'] },
+  HP:  { s: 9,  a: 5, r: 18, dmg: 90, hs: 26, bs: 14, kb: 9, box: [25, 60, 90, 55], adv: 16, chain: ['K', 'cK', 'SP', 'OD'], jc: true },
+  K:   { s: 7,  a: 5, r: 15, dmg: 70, hs: 24, bs: 12, kb: 7, box: [25, 20, 95, 45], adv: 18, chain: ['SP', 'OD'], jc: true },
+  cK:  { s: 9,  a: 5, r: 20, dmg: 60, hs: 20, bs: 12, kb: 4, box: [20, 0, 100, 30], adv: 12, low: true, knockdown: true, chain: ['SP', 'OD'] },
+  cHP: { s: 8,  a: 5, r: 22, dmg: 80, hs: 24, bs: 14, kb: 2, box: [10, 50, 60, 110], adv: 8, launch: true, chain: ['SP', 'OD'], jc: true },
   jLP: { s: 5,  a: 8, r: 8,  dmg: 45, hs: 14, bs: 8,  kb: 3, box: [10, -10, 70, 60], air: true, overhead: true, chain: ['jHP', 'jK'] },
   jHP: { s: 8,  a: 8, r: 10, dmg: 80, hs: 20, bs: 12, kb: 6, box: [10, -20, 80, 80], air: true, overhead: true, chain: ['jK'] },
   jK:  { s: 7,  a: 8, r: 10, dmg: 70, hs: 18, bs: 12, kb: 8, box: [20, -10, 90, 50], air: true, overhead: true, chain: [] },
@@ -124,10 +124,13 @@ const Engine = {
     if (this.pressed(f, BTN.L)) { if (st.frame - f.tapL < 12 && f.st === 'idle' || st.frame - f.tapL < 12 && f.st === 'walk') f.dashReq = -1; f.tapL = st.frame; }
     if (this.pressed(f, BTN.R)) { if (st.frame - f.tapR < 12 && (f.st === 'idle' || f.st === 'walk')) f.dashReq = 1; f.tapR = st.frame; }
 
+    // buffer de entrada (12 frames): lo que aprietes durante un golpe sale apenas se pueda cancelar
+    { const w = this.wantedAttack(st, f, air, holdD); if (w) f.buf = { name: w, until: st.frame + 12 }; }
+    const buffered = () => (f.buf && f.buf.until >= st.frame) ? f.buf.name : null;
     // ---- estados pasivos / de daño ----
     if (f.st === 'hit' || f.st === 'launched') {
       if (air || f.st === 'launched') { f.vy -= GRAV; f.y += f.vy; f.x += f.vx; if (f.y <= 0) { f.y = 0; f.vy = 0; f.vx = 0; f.st = 'down'; f.t = 0; f.combo = 0; } }
-      else { f.x += f.vx; f.vx *= 0.8; if (f.t >= f.stun) { f.st = 'idle'; f.t = 0; f.combo = 0; } }
+      else { f.x += f.vx; f.vx *= 0.7; if (f.t >= f.stun) { f.st = 'idle'; f.t = 0; f.combo = 0; } }
       // Burst de biofilm: con el botón BURST en hitstun
       if (this.pressed(f, BTN.BURST) && f.burst) { f.y = Math.max(f.y, 0); f.vx = 0; f.vy = 0; this.startMove(st, f, 'BURST'); }
       return;
@@ -138,7 +141,7 @@ const Engine = {
     if (f.st === 'ko') { this.physicsOnlyOne(f); return; }
 
     // ---- dash ----
-    if (f.st === 'dash') { f.x += f.vx; if (f.vx * f.face > 0 && this.pressed(f, BTN.HP)) { this.startMove(st, f, 'RUSH'); return; } if (f.t > (f.vx * f.face > 0 ? 14 : 12)) { f.st = 'idle'; f.t = 0; } return; }
+    if (f.st === 'dash') { f.x += f.vx; if (f.vx * f.face > 0 && (this.pressed(f, BTN.HP) || buffered() === 'HP')) { f.buf = null; this.startMove(st, f, 'RUSH'); return; } if (f.t > (f.vx * f.face > 0 ? 14 : 12)) { f.st = 'idle'; f.t = 0; } return; }
 
     // ---- ataques ----
     if (f.st === 'attack' || f.st === 'grab') {
@@ -152,14 +155,16 @@ const Engine = {
       // ejecución del especial al final del startup
       if (!m && f.t === T[0]) this.fireSpecial(st, f, opp);
       if (m && m.lunge && f.t >= T[0] && f.t < T[0] + T[1]) f.x += f.face * m.lunge;
+      if (m && m.adv && !air && f.t <= T[0] && Math.abs(opp.x - f.x) > 70) f.x += f.face * m.adv / T[0]; // avanza un poco al golpear (los combos no se escapan)
       if (m && m.armor && f.t === 1) f.armor = T[0] + T[1];
       if (m && m.shot && f.t === T[0]) { const r = ROSTER_BY_ID[f.id]; st.proj.push({ owner: f.side, kind: 'ball', x: f.x + f.face * 50, y: 70, vx: f.face * 9, vy: 0, w: 26, h: 26, life: 110, dmg: 60 * r.stats.pow, color: r.c3, hs: 16, bs: 10, kb: 6, hitIds: {} }); st.events.push({ type: 'special', side: f.side, x: f.x, kind: 'shot' }); }
       if (!m && f.sp.kind === 'upper') { if (f.t === T[0]) { f.vy = 15; f.vx = f.face * 3; f.inv = 10; } if (f.t > T[0]) { f.vy -= GRAV; f.y += f.vy; f.x += f.vx; if (f.y <= 0) { f.y = 0; f.vy = 0; f.vx = 0; } } if (f.t >= total && f.y === 0) { f.st = 'idle'; f.t = 0; } return; }
       if (!m && f.sp.kind === 'absorb') { if (f.t > T[0] && f.t < T[0] + T[1]) f.absorbT = 2; }
       // cancel (gatling) hacia otro golpe cuando el actual conectó
       if (m && f.hitDone && f.t >= T[0] && f.t < total) {
-        const nxt = this.wantedAttack(st, f, air, holdD);
-        if (nxt && (m.chain.includes(nxt) || nxt === 'SP' || nxt === 'OD')) { this.tryAttack(st, f, opp, nxt); return; }
+        if (m.jc && !air && this.pressed(f, BTN.U)) { f.st = 'jump'; f.t = 0; f.vy = 15 * S.jmp; f.vx = holdF ? f.face * 4.5 * spdMul : holdB ? -f.face * 4 * spdMul : 0; f.jumps = r.id === 'ASU' ? 1 : 0; f.crouch = false; return; } // jump cancel
+        const nxt = buffered();
+        if (nxt && (m.chain.includes(nxt) || nxt === 'SP' || nxt === 'OD')) { f.buf = null; this.tryAttack(st, f, opp, nxt); return; }
       }
       if (f.t >= total) { f.st = 'idle'; f.t = 0; f.crouch = false; }
       return;
@@ -170,15 +175,15 @@ const Engine = {
       f.vy -= GRAV; f.y += f.vy; f.x += f.vx;
       if (f.y <= 0) { f.y = 0; f.vy = 0; f.vx = 0; f.st = 'idle'; f.t = 0; return; }
       if (this.pressed(f, BTN.U) && f.jumps > 0) { f.jumps--; f.vy = 13 * S.jmp; f.vx = holdF ? f.face * 4 : holdB ? -f.face * 4 : 0; }
-      const at = this.wantedAttack(st, f, true, false); if (at) this.tryAttack(st, f, opp, at);
+      const at = buffered(); if (at && MOVES[at] && MOVES[at].air) { f.buf = null; this.tryAttack(st, f, opp, at); }
       return;
     }
 
     // ---- suelo ----
     f.crouch = !!holdD;
     if (f.dashReq) { const d = f.dashReq; f.dashReq = 0; f.st = 'dash'; f.t = 0; f.vx = d === f.face ? 9 * spdMul * f.face : -7 * f.face; if (d !== f.face) f.inv = 6; return; }
-    const at = this.wantedAttack(st, f, false, holdD);
-    if (at) { this.tryAttack(st, f, opp, at); return; }
+    const at = buffered();
+    if (at && !(MOVES[at] && MOVES[at].air)) { f.buf = null; this.tryAttack(st, f, opp, at); return; }
     if (this.pressed(f, BTN.U) || (holdU && f.st !== 'jump' && f.t > 2 && f.y === 0 && f.prevU === false)) {
       f.st = 'jump'; f.t = 0; f.vy = 15 * S.jmp; f.vx = holdF ? f.face * 4.5 * spdMul : holdB ? -f.face * 4 * spdMul : 0; f.jumps = r.id === 'ASU' ? 1 : 0; f.crouch = false; f.prevU = true; return;
     }
@@ -281,7 +286,7 @@ const Engine = {
     const scale = Math.max(0.35, 1 - def.combo * 0.1);
     const dmg = Math.floor((m.dmg || 0) * P / D * scale);
     if (def.armor > 0 && def.st === 'attack') { def.hp -= Math.floor(dmg * 0.5); def.armor = 0; st.events.push({ type: 'armor', x: hx, y: hy }); return true; }
-    def.hp -= dmg; def.combo++;
+    def.hp -= dmg; def.combo++; def.comboDmg = (def.combo === 1 ? 0 : (def.comboDmg || 0)) + dmg;
     atk.meter = Math.min(MAX_METER, atk.meter + 7); def.meter = Math.min(MAX_METER, def.meter + 4);
     if (def.st === 'attack' || def.st === 'grab') { def.auraT = 0; }
     const airborne = def.y > 0 || m.launch || (m.knockdown);
@@ -294,7 +299,7 @@ const Engine = {
     def.y = Math.max(0, def.y);
     const str = dmg > 100 ? 3 : dmg > 60 ? 2 : 1;
     st.shake = Math.max(st.shake, str * 3);
-    st.events.push({ type: 'hit', x: hx, y: hy, str, side: atk.side, combo: def.combo });
+    st.events.push({ type: 'hit', x: hx, y: hy, str, side: atk.side, combo: def.combo, dmg: def.comboDmg });
     return true;
   },
   updateProjectiles(st) {

@@ -2,7 +2,7 @@
 const Game = {
   screen: 'title', canvas: null, ctx: null, acc: 0, last: 0, menuIdx: 0, level: 2, mode: '1p',
   sel: { cur: [0, 1], done: [false, false], t: 0 }, st: null, seed: 0, vsT: 0, online: false, netInfo: '',
-  VERSION: '0.9.3', VS_FRAMES: 300, // 5 s de pantalla VS con los controles
+  VERSION: '0.9.5', VS_FRAMES: 300, // 5 s de pantalla VS con los controles
   CONTROLS: [['Mover', 'A / D', '← / →'], ['Saltar', 'W', '↑'], ['Agacharse', 'S', '↓'], ['Golpe ligero', 'J', 'Num 1  (B)'], ['Golpe fuerte', 'K', 'Num 2  (N)'], ['Patada', 'L  (o I)', 'Num 3  (M)'], ['Especial', 'U', 'Num 5  (.)'], ['Overdrive (medidor 100 %)', 'O', 'Num 6  (/)'], ['Burst · Lysis Cancel', 'H', 'Num 0  (Shift der.)'], ['Dash', 'doble toque A/D', 'doble toque ←/→'], ['Bloquear', 'mantener atrás', 'mantener atrás'], ['Lanzador / Barrida', 'S + K  /  S + L', '↓ + Num2  /  ↓ + Num3'], ['LITHO RUSH (embestida)', 'D, D + K', '→, → + Num2'], ['PROTON SHOT (bola de ácido)', 'S, D + J  (↓↘→)', '↓, → + Num1']],
   MENU: [['1 JUGADOR vs CPU', '1p'], ['2 JUGADORES (mismo teclado)', '2p'], ['ENTRENAMIENTO (muñeco quieto)', 'train'], ['ONLINE sin servidor (WebRTC, código de sala)', 'peer'], ['ONLINE con servidor WebSocket (tu Ubuntu)', 'ws'], ['NIVEL CPU: ', 'level']],
 
@@ -22,7 +22,14 @@ const Game = {
     document.getElementById('vol').oninput = e => Audio.setVolume(parseFloat(e.target.value));
     requestAnimationFrame(t => this.loop(t));
   },
-  resize() { const s = Math.min(window.innerWidth / 960, (window.innerHeight - 10) / 540); this.canvas.style.width = Math.floor(960 * s) + 'px'; this.canvas.style.height = Math.floor(540 * s) + 'px'; },
+  // Resolución nativa: el lienzo se dibuja al tamaño real en pantalla × devicePixelRatio (nítido en retina / 4K); la lógica sigue en 960×540.
+  resize() {
+    const s = Math.min(window.innerWidth / 960, (window.innerHeight - 10) / 540), cw = Math.floor(960 * s), ch = Math.floor(540 * s);
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    this.canvas.style.width = cw + 'px'; this.canvas.style.height = ch + 'px';
+    this.canvas.width = Math.round(cw * dpr); this.canvas.height = Math.round(ch * dpr);
+    this.scale = [this.canvas.width / 960, this.canvas.height / 540];
+  },
   overlay(id, show) { document.getElementById(id).style.display = show ? 'block' : 'none'; },
 
   loop(t) {
@@ -135,7 +142,7 @@ const Game = {
 
   // ---------- dibujo de pantallas ----------
   render() {
-    const ctx = this.ctx; ctx.clearRect(0, 0, 960, 540);
+    const ctx = this.ctx; ctx.setTransform(this.scale[0], 0, 0, this.scale[1], 0, 0); ctx.clearRect(0, 0, 960, 540);
     if (this.screen === 'title' || this.screen === 'lobby') this.drawTitle(ctx);
     else if (this.screen === 'select') this.drawSelect(ctx);
     else if (this.screen === 'vs') this.drawVS(ctx);
