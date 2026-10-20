@@ -2,7 +2,7 @@
 const Game = {
   screen: 'title', canvas: null, ctx: null, acc: 0, last: 0, menuIdx: 0, level: 2, mode: '1p',
   sel: { cur: [0, 1], done: [false, false], t: 0 }, st: null, seed: 0, vsT: 0, online: false, netInfo: '',
-  VERSION: '0.9.9', VS_FRAMES: 300, // 5 s de pantalla VS con los controles
+  VERSION: '0.9.10', VS_FRAMES: 300, // 5 s de pantalla VS con los controles
   CONTROLS: [['Mover', 'A / D', '← / →'], ['Saltar', 'W', '↑'], ['Agacharse', 'S', '↓'], ['Golpe ligero', 'J', 'Num 1  (B)'], ['Golpe fuerte', 'K', 'Num 2  (N)'], ['Patada', 'L  (o I)', 'Num 3  (M)'], ['Especial', 'U', 'Num 5  (.)'], ['Overdrive (medidor 100 %)', 'O', 'Num 6  (/)'], ['Burst · Lysis Cancel', 'H', 'Num 0  (Shift der.)'], ['Dash', 'doble toque A/D', 'doble toque ←/→'], ['Bloquear', 'mantener atrás', 'mantener atrás'], ['Pausa', 'Enter', 'Enter'], ['Lanzador / Barrida', 'S + K  /  S + L', '↓ + Num2  /  ↓ + Num3'], ['LITHO RUSH (embestida)', 'D, D + K', '→, → + Num2'], ['PROTON SHOT (bola de ácido)', 'S, D + J  (↓↘→)', '↓, → + Num1']],
   MENU: [['1 JUGADOR vs CPU', '1p'], ['2 JUGADORES (mismo teclado)', '2p'], ['ENTRENAMIENTO (muñeco quieto)', 'train'], ['ONLINE sin servidor (WebRTC, código de sala)', 'peer'], ['ONLINE con servidor WebSocket (tu Ubuntu)', 'ws'], ['NIVEL CPU: ', 'level']],
 
@@ -197,21 +197,45 @@ const Game = {
       ctx.fillStyle = '#fff'; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.fillText(r.id, x + 46, y + 18);
       for (let p = 0; p < 2; p++) if (this.sel.cur[p] === i) { ctx.strokeStyle = p === 0 ? '#3af' : '#f55'; ctx.lineWidth = 4; ctx.strokeRect(x - 3 + p * 2, y - 3 + p * 2, 98 - p * 4, 96 - p * 4); ctx.fillStyle = p === 0 ? '#3af' : '#f55'; ctx.font = 'bold 12px Arial'; ctx.fillText(p === 0 ? 'P1' : 'P2', x + 14 + p * 64, y + 84); }
     }
-    // fichas grandes
+    // fichas compactas (izquierda P1, derecha P2) + gráfico de araña al centro
     for (let p = 0; p < 2; p++) {
-      const r = ROSTER[this.sel.cur[p]], x = p === 0 ? 40 : 920, left = p === 0;
+      const r = ROSTER[this.sel.cur[p]], left = p === 0;
       const f = Engine.newFighter(r.id, p); f.st = this.sel.done[p] ? 'attack' : 'idle'; f.move = 'HP'; f.t = this.sel.done[p] ? 10 : t; f.face = left ? 1 : -1;
-      FighterDraw.draw(ctx, f, t, left ? 110 : 850, 505, 0.75);
-      ctx.textAlign = left ? 'left' : 'right'; const tx = left ? 190 : 770;
-      ctx.fillStyle = CLADES[r.clade].col; ctx.font = 'bold 26px Arial'; ctx.fillText(r.id + ' · ' + r.name, tx, 350);
-      ctx.fillStyle = '#ccc'; ctx.font = 'italic 12px Arial'; ctx.fillText(r.full, tx, 368);
-      ctx.fillStyle = '#9ad'; ctx.font = '12px Arial'; ctx.fillText(CLADES[r.clade].name + ' · ' + r.arch, tx, 386);
-      ctx.fillStyle = '#eee'; ctx.font = '12px Arial'; this.wrap(ctx, r.bio, tx, 406, 265, 15);
-      ctx.fillStyle = '#ffd34d'; ctx.font = 'bold 12px Arial'; ctx.fillText('ESPECIAL (U): ' + r.special.name, tx, 462);
-      ctx.fillStyle = '#ff4df0'; ctx.fillText('OVERDRIVE (O): ' + r.od.name, tx, 480);
-      const S = r.stats; ctx.fillStyle = '#aaa'; ctx.font = '11px Arial'; ctx.fillText('HP ' + S.hp + ' · VEL ' + S.spd.toFixed(2) + ' · POD ' + S.pow.toFixed(2) + ' · DEF ' + S.def.toFixed(2), tx, 500);
-      if (this.sel.done[p]) { ctx.fillStyle = '#b9ff3c'; ctx.font = 'bold 14px Arial'; ctx.fillText('¡LISTO!', tx, 520); }
+      FighterDraw.draw(ctx, f, t, left ? 90 : 870, 515, 0.8);
+      ctx.textAlign = left ? 'left' : 'right'; const tx = left ? 165 : 795;
+      ctx.fillStyle = CLADES[r.clade].col; ctx.font = 'bold 30px Arial'; ctx.fillText(r.id, tx, 358);
+      ctx.fillStyle = '#fff'; ctx.font = 'italic 15px Arial'; ctx.fillText(r.name, tx, 378);
+      // clado (punto de color) + arquetipo
+      ctx.fillStyle = CLADES[r.clade].col; ctx.beginPath(); ctx.arc(left ? tx + 6 : tx - 6, 395, 6, 0, 7); ctx.fill();
+      ctx.fillStyle = '#ccc'; ctx.font = '12px Arial'; ctx.fillText(r.arch, left ? tx + 18 : tx - 18, 399);
+      // especial / overdrive con símbolos
+      ctx.fillStyle = '#ffd34d'; ctx.font = 'bold 13px Arial'; ctx.fillText('★ ' + r.special.name, tx, 424); ctx.fillStyle = '#888'; ctx.font = '10px Arial'; ctx.fillText('especial · U', tx, 437);
+      ctx.fillStyle = '#ff4df0'; ctx.font = 'bold 13px Arial'; ctx.fillText('◆ ' + r.od.name, tx, 458); ctx.fillStyle = '#888'; ctx.font = '10px Arial'; ctx.fillText('overdrive · O', tx, 471);
+      // icono del tipo de especial
+      const icon = { proj: '●→', slowproj: '❄→', upper: '↑!', column: '▲▲', grab: '✊', drain: '✊♥', aura: '◎', teleport: '≈', rain: '☂', wall: '▣', wave: '〰', absorb: '⊕', beam: '═►', steam: '♨' }[r.special.kind] || '•';
+      ctx.fillStyle = '#9ff'; ctx.font = '13px Arial'; ctx.fillText(icon + '  ' + { proj: 'proyectil', slowproj: 'proyectil que ralentiza', upper: 'antiaéreo', column: 'columna', grab: 'agarre', drain: 'agarre que cura', aura: 'aura de daño', teleport: 'teletransporte', rain: 'lluvia', wall: 'trampa', wave: 'ola', absorb: 'contra / absorbe', beam: 'rayo', steam: 'puño pesado' }[r.special.kind], tx, 492);
+      if (this.sel.done[p]) { ctx.fillStyle = '#b9ff3c'; ctx.font = 'bold 14px Arial'; ctx.fillText('¡LISTO!', tx, 518); }
     }
+    this.drawRadar(ctx, 480, 428, 70);
+  },
+  // Gráfico de araña: todas las líneas de los 17 taxa en tenue, el seleccionado por P1 (azul) y P2 (rojo) destacados
+  RADAR_AXES: ['VIDA', 'VELOCIDAD', 'SALTO', 'PODER', 'DEFENSA', 'ALCANCE'],
+  radarVals(r) { const S = r.stats; const reach = { proj: 0.9, slowproj: 0.9, beam: 1.0, column: 0.8, rain: 0.85, wave: 0.9, wall: 0.6, teleport: 0.7, upper: 0.3, grab: 0.2, drain: 0.2, aura: 0.35, absorb: 0.3, steam: 0.4 }[r.special.kind] || 0.5;
+    return [(S.hp - 850) / 400, (S.spd - 0.7) / 0.6, (S.jmp - 0.75) / 0.55, (S.pow - 0.85) / 0.55, (S.def - 0.85) / 0.4, reach].map(v => Math.max(0.08, Math.min(1, v))); },
+  drawRadar(ctx, cx, cy, R) {
+    const n = 6, ang = i => -Math.PI / 2 + i * Math.PI * 2 / n;
+    ctx.save(); ctx.lineWidth = 1;
+    for (let k = 1; k <= 4; k++) { ctx.strokeStyle = 'rgba(255,255,255,' + (k === 4 ? 0.35 : 0.12) + ')'; ctx.beginPath(); for (let i = 0; i <= n; i++) ctx.lineTo(cx + Math.cos(ang(i)) * R * k / 4, cy + Math.sin(ang(i)) * R * k / 4); ctx.stroke(); }
+    ctx.strokeStyle = 'rgba(255,255,255,0.15)'; for (let i = 0; i < n; i++) { ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(ang(i)) * R, cy + Math.sin(ang(i)) * R); ctx.stroke(); }
+    const poly = (vals) => { ctx.beginPath(); for (let i = 0; i <= n; i++) { const v = vals[i % n]; ctx.lineTo(cx + Math.cos(ang(i)) * R * v, cy + Math.sin(ang(i)) * R * v); } };
+    for (const r of ROSTER) { if (r === ROSTER[this.sel.cur[0]] || r === ROSTER[this.sel.cur[1]]) continue; ctx.strokeStyle = CLADES[r.clade].col; ctx.globalAlpha = 0.22; ctx.lineWidth = 1; poly(this.radarVals(r)); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+    [[1, '#f55', 'rgba(255,85,85,0.28)'], [0, '#3af', 'rgba(51,170,255,0.3)']].forEach(([p, col, fill]) => { const r = ROSTER[this.sel.cur[p]]; poly(this.radarVals(r)); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.stroke(); });
+    ctx.fillStyle = '#ddd'; ctx.font = 'bold 11px Arial'; ctx.textAlign = 'center';
+    this.RADAR_AXES.forEach((a, i) => { const x = cx + Math.cos(ang(i)) * (R + 18), y = cy + Math.sin(ang(i)) * (R + 16) + 4; ctx.fillText(a, x, y); });
+    ctx.font = '10px Arial'; ctx.fillStyle = '#3af'; ctx.textAlign = 'right'; ctx.fillText('■ P1 ' + ROSTER[this.sel.cur[0]].id, cx - 60, cy + R + 36); ctx.fillStyle = '#f55'; ctx.textAlign = 'left'; ctx.fillText('■ P2 ' + ROSTER[this.sel.cur[1]].id, cx + 60, cy + R + 36);
+    ctx.fillStyle = '#777'; ctx.textAlign = 'center'; ctx.fillText('líneas tenues: los otros 15 taxa (color = clado)', cx, cy - R - 26);
+    ctx.restore();
   },
   wrap(ctx, text, x, y, w, lh) { const words = text.split(' '); let line = ''; for (const wd of words) { const test = line + wd + ' '; if (ctx.measureText(test).width > w && line) { ctx.fillText(line, x, y); line = wd + ' '; y += lh; } else line = test; } ctx.fillText(line, x, y); },
   drawVS(ctx) {
