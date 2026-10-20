@@ -3,8 +3,7 @@
 const ARENA_W = 1500, GRAV = 0.8, ROUND_FRAMES = 120 * 60, MAX_METER = 100;
 
 const MOVES = {
-  LP:  { s: 3,  a: 3, r: 8,  dmg: 30, hs: 12, bs: 8,  kb: 3, box: [20, 80, 60, 34], chain: ['MP', 'HP', 'K', 'cHP', 'cK', 'SP', 'OD'] },
-  MP:  { s: 6,  a: 4, r: 12, dmg: 55, hs: 16, bs: 10, kb: 5, box: [25, 70, 75, 40], chain: ['HP', 'K', 'cHP', 'cK', 'SP', 'OD'] },
+  LP:  { s: 3,  a: 3, r: 8,  dmg: 30, hs: 12, bs: 8,  kb: 3, box: [20, 80, 60, 34], chain: ['HP', 'K', 'cHP', 'cK', 'SP', 'OD'] },
   HP:  { s: 10, a: 5, r: 18, dmg: 90, hs: 22, bs: 14, kb: 9, box: [25, 60, 90, 55], chain: ['K', 'cK', 'SP', 'OD'] },
   K:   { s: 8,  a: 5, r: 15, dmg: 70, hs: 18, bs: 12, kb: 7, box: [25, 20, 95, 45], chain: ['SP', 'OD'] },
   cK:  { s: 9,  a: 5, r: 20, dmg: 60, hs: 20, bs: 12, kb: 4, box: [20, 0, 100, 30], low: true, knockdown: true, chain: ['SP', 'OD'] },
@@ -12,13 +11,16 @@ const MOVES = {
   jLP: { s: 5,  a: 8, r: 8,  dmg: 45, hs: 14, bs: 8,  kb: 3, box: [10, -10, 70, 60], air: true, overhead: true, chain: ['jHP', 'jK'] },
   jHP: { s: 8,  a: 8, r: 10, dmg: 80, hs: 20, bs: 12, kb: 6, box: [10, -20, 80, 80], air: true, overhead: true, chain: ['jK'] },
   jK:  { s: 7,  a: 8, r: 10, dmg: 70, hs: 18, bs: 12, kb: 8, box: [20, -10, 90, 50], air: true, overhead: true, chain: [] },
-  BURST: { s: 4, a: 8, r: 12, dmg: 0, hs: 30, bs: 0, kb: 22, box: [-90, 0, 180, 170], chain: [] }
+  BURST: { s: 4, a: 8, r: 12, dmg: 0, hs: 30, bs: 0, kb: 22, box: [-90, 0, 180, 170], chain: [] },
+  // Movimientos de comando (iguales para todos): → → + K = LITHO RUSH (embestida con armadura); ↓ ↘ → + J = PROTON SHOT (bola de ácido)
+  RUSH: { s: 6, a: 10, r: 18, dmg: 110, hs: 26, bs: 16, kb: 16, box: [10, 30, 110, 110], knockdown: true, lunge: 11, armor: true, chain: ['SP', 'OD'] },
+  SHOT: { s: 8, a: 1, r: 20, dmg: 0, hs: 0, bs: 0, kb: 0, box: [0, 0, 0, 0], shot: true, chain: ['SP', 'OD'] }
 };
 
 const Engine = {
   newState(seed, stageIdx, ids, opts) {
     const st = { frame: 0, rng: RNG.make(seed), seed, stage: stageIdx, round: 1, wins: [0, 0], timer: ROUND_FRAMES,
-      phase: 'intro', phaseT: 0, f: [], proj: [], events: [], shake: 0, winner: -1, rounds: (opts && opts.rounds) || 3 };
+      phase: 'intro', phaseT: 0, f: [], proj: [], events: [], shake: 0, winner: -1, rounds: (opts && opts.rounds) || 3, training: !!(opts && opts.training) };
     st.f = [this.newFighter(ids[0], 0), this.newFighter(ids[1], 1)];
     this.resetRound(st);
     return st;
@@ -42,6 +44,7 @@ const Engine = {
     st.events = []; st.frame++;
     if (st.shake > 0) st.shake--;
     const [a, b] = st.f; a.prev = a.bits; b.prev = b.bits; a.bits = bits0; b.bits = bits1;
+    for (const f of st.f) { const d = this.dirOf(f); if (!f.hist) f.hist = []; f.hist.push(d); if (f.hist.length > 16) f.hist.shift(); }
     if (st.phase === 'intro') { st.phaseT++; if (st.phaseT === 120) { st.phase = 'fight'; st.events.push({ type: 'fight' }); } return; }
     if (st.phase === 'end') return;
     if (st.phase === 'ko') {
@@ -56,6 +59,11 @@ const Engine = {
     this.updateProjectiles(st);
     this.pushApart(a, b);
     for (const f of st.f) { f.x = Math.max(30, Math.min(ARENA_W - 30, f.x)); if (f.st !== 'attack' && f.st !== 'grab' && f.st !== 'grabbed' && f.y === 0) f.face = (st.f[1 - f.side].x >= f.x) ? 1 : -1; }
+    if (st.training) {
+      st.timer = ROUND_FRAMES; a.meter = MAX_METER;
+      for (const f of st.f) { if (f.hp < f.maxhp) { f.lowT = (f.lowT || 0) + 1; if (f.hp <= 0 || f.lowT > 180) { f.hp = f.maxhp; f.lowT = 0; if (f.st === 'hit' || f.st === 'launched' || f.st === 'down') { f.st = 'idle'; f.t = 0; f.y = 0; f.vy = 0; } } } else f.lowT = 0; }
+      return;
+    }
     // KO / tiempo
     if (a.hp <= 0 || b.hp <= 0) {
       st.phase = 'ko'; st.phaseT = 0; st.shake = 20;
@@ -80,6 +88,12 @@ const Engine = {
   },
 
   pressed(f, b) { return (f.bits & b) && !(f.prev & b); },
+  // dirección relativa al frente: 'D' abajo, 'DF' abajo-adelante, 'F' adelante, 'B' atrás, 'N' neutro…
+  dirOf(f) { const d = f.bits & BTN.D, u = f.bits & BTN.U, fw = f.bits & this.fwd(f), bk = f.bits & this.back(f); return d ? (fw ? 'DF' : bk ? 'DB' : 'D') : u ? 'U' : fw ? 'F' : bk ? 'B' : 'N'; },
+  qcf(f) { // ↓ (↘) → en los últimos 14 frames, en ese orden
+    const h = f.hist || []; let iD = -1; for (let i = h.length - 1; i >= 0 && i >= h.length - 14; i--) if (h[i] === 'D' || h[i] === 'DB') { iD = i; }
+    if (iD < 0) return false; for (let i = iD + 1; i < h.length; i++) if (h[i] === 'F' || h[i] === 'DF') return true; return false;
+  },
   fwd(f) { return f.face > 0 ? BTN.R : BTN.L; },
   back(f) { return f.face > 0 ? BTN.L : BTN.R; },
 
@@ -124,7 +138,7 @@ const Engine = {
     if (f.st === 'ko') { this.physicsOnlyOne(f); return; }
 
     // ---- dash ----
-    if (f.st === 'dash') { f.x += f.vx; if (f.t > (f.vx * f.face > 0 ? 14 : 12)) { f.st = 'idle'; f.t = 0; } return; }
+    if (f.st === 'dash') { f.x += f.vx; if (f.vx * f.face > 0 && this.pressed(f, BTN.HP)) { this.startMove(st, f, 'RUSH'); return; } if (f.t > (f.vx * f.face > 0 ? 14 : 12)) { f.st = 'idle'; f.t = 0; } return; }
 
     // ---- ataques ----
     if (f.st === 'attack' || f.st === 'grab') {
@@ -137,6 +151,9 @@ const Engine = {
       if (this.pressed(f, BTN.BURST) && f.meter >= 50 && f.move !== 'BURST' && f.move !== 'OD') { f.meter -= 50; f.st = 'idle'; f.t = 0; f.auraT = 0; st.events.push({ type: 'lysis', x: f.x, y: f.y }); return; }
       // ejecución del especial al final del startup
       if (!m && f.t === T[0]) this.fireSpecial(st, f, opp);
+      if (m && m.lunge && f.t >= T[0] && f.t < T[0] + T[1]) f.x += f.face * m.lunge;
+      if (m && m.armor && f.t === 1) f.armor = T[0] + T[1];
+      if (m && m.shot && f.t === T[0]) { const r = ROSTER_BY_ID[f.id]; st.proj.push({ owner: f.side, kind: 'ball', x: f.x + f.face * 50, y: 70, vx: f.face * 9, vy: 0, w: 26, h: 26, life: 110, dmg: 60 * r.stats.pow, color: r.c3, hs: 16, bs: 10, kb: 6, hitIds: {} }); st.events.push({ type: 'special', side: f.side, x: f.x, kind: 'shot' }); }
       if (!m && f.sp.kind === 'upper') { if (f.t === T[0]) { f.vy = 15; f.vx = f.face * 3; f.inv = 10; } if (f.t > T[0]) { f.vy -= GRAV; f.y += f.vy; f.x += f.vx; if (f.y <= 0) { f.y = 0; f.vy = 0; f.vx = 0; } } if (f.t >= total && f.y === 0) { f.st = 'idle'; f.t = 0; } return; }
       if (!m && f.sp.kind === 'absorb') { if (f.t > T[0] && f.t < T[0] + T[1]) f.absorbT = 2; }
       // cancel (gatling) hacia otro golpe cuando el actual conectó
@@ -176,9 +193,8 @@ const Engine = {
   wantedAttack(st, f, air, holdD) {
     if (this.pressed(f, BTN.OD) && f.meter >= MAX_METER && !air) return 'OD';
     if (this.pressed(f, BTN.SP) && !air) return 'SP';
-    if (air) { if (this.pressed(f, BTN.LP)) return 'jLP'; if (this.pressed(f, BTN.MP) || this.pressed(f, BTN.HP)) return 'jHP'; if (this.pressed(f, BTN.K)) return 'jK'; return null; }
-    if (this.pressed(f, BTN.LP)) return 'LP';
-    if (this.pressed(f, BTN.MP)) return 'MP';
+    if (air) { if (this.pressed(f, BTN.LP)) return 'jLP'; if (this.pressed(f, BTN.HP)) return 'jHP'; if (this.pressed(f, BTN.K)) return 'jK'; return null; }
+    if (this.pressed(f, BTN.LP)) return this.qcf(f) ? 'SHOT' : 'LP';
     if (this.pressed(f, BTN.HP)) return holdD ? 'cHP' : 'HP';
     if (this.pressed(f, BTN.K)) return holdD ? 'cK' : 'K';
     return null;

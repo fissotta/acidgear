@@ -2,7 +2,7 @@
 
 Juego de pelea 2D estilo Guilty Gear entre los 17 taxa de la clase *Acidithiobacillia* (Fig. 3A de Moya-Beltrán et al. 2021, ISME J 15:3221). Página web estática: corre en GitHub Pages sin ningún servidor, incluso el modo online de 2 jugadores.
 
-Versión 0.9.0 (oct 2026). Carpeta: `/Users/issotta/proyectos/acidgear`.
+Versión 0.9.3 (oct 2026). Carpeta: `/Users/issotta/proyectos/acidgear`.
 
 ---
 
@@ -79,20 +79,25 @@ Imprime una URL tipo `https://algo-random.trycloudflare.com`. En el juego (desde
 
 ## 5. Controles
 
+**Modo ENTRENAMIENTO** (en el menú del título): eliges tu personaje y luego el muñeco. El muñeco no se mueve (T lo cambia a *bloquea* o *CPU*), no hay tiempo ni KO, la vida se recupera sola y tu medidor está siempre al 100 % para practicar el Overdrive. R reinicia posiciones, M oculta/muestra la lista de movimientos, Esc sale.
+
+**Movimientos de comando** (iguales para todos los personajes):
+- **LITHO RUSH**: adelante, adelante + golpe fuerte (→ → + K). Embestida con armadura que derriba.
+- **PROTON SHOT**: abajo, abajo-adelante, adelante + golpe ligero (↓ ↘ → + J, estilo hadouken; también vale ↓ luego →). Bola de ácido rápida.
+
 | Acción | Jugador 1 | Jugador 2 (mismo teclado) | Gamepad |
 |---|---|---|---|
 | Mover / agacharse / saltar | W A S D | flechas | stick / cruceta |
 | Golpe ligero (LP) | J | Numpad 1 (o B) | X / □ |
-| Golpe medio (MP) | K | Numpad 2 (o N) | Y / △ |
-| Golpe fuerte (HP) | L | Numpad 3 (o M) | RB |
-| Patada (K) | I | Numpad 4 (o ,) | A / ✕ |
+| Golpe fuerte (HP) | K | Numpad 2 (o N) | Y / △ (o RB) |
+| Patada (K) | L (o I) | Numpad 3 (o M) | A / ✕ |
 | Especial | U | Numpad 5 (o .) | B / ○ |
 | Overdrive (medidor al 100 %) | O | Numpad 6 (o /) | RT |
 | Burst de biofilm / Lysis Cancel | H | Numpad 0 (o Shift der.) | LB |
 
-Online y 1 jugador siempre usan los controles del jugador 1. Doble toque adelante/atrás = dash. Abajo + HP = lanzador (antiaéreo). Abajo + K = barrida (baja). Golpes en el aire = overhead (hay que bloquear de pie). Bloqueo: mantener atrás; abajo+atrás bloquea bajos.
+Online y 1 jugador siempre usan los controles del jugador 1. Doble toque adelante/atrás = dash. Abajo + K (fuerte) = lanzador (antiaéreo). Abajo + L (patada) = barrida (baja). Golpes en el aire = overhead (hay que bloquear de pie). Bloqueo: mantener atrás; abajo+atrás bloquea bajos.
 
-Sistemas estilo GG: los golpes se cancelan en cadena LP → MP → HP → K → Especial → Overdrive (gatling). El **Gradiente de protones** (medidor) sube al pegar, bloquear y acercarse; al 100 % habilita el Overdrive (O). **Lysis Cancel** (H durante tu propio ataque, cuesta 50 %) cancela cualquier golpe. **Burst de biofilm** (H mientras te pegan, 1 por round) empuja al rival. Combos con escalado de daño.
+Sistemas estilo GG: los golpes se cancelan en cadena ligero → fuerte → patada → Especial → Overdrive (gatling). El **Gradiente de protones** (medidor) sube al pegar, bloquear y acercarse; al 100 % habilita el Overdrive (O). **Lysis Cancel** (H durante tu propio ataque, cuesta 50 %) cancela cualquier golpe. **Burst de biofilm** (H mientras te pegan, 1 por round) empuja al rival. Combos con escalado de daño.
 
 Formato: 3 rounds de 2:00, gana el que llega a 2. Escenario al azar entre 20 (aparece el lugar, pH y temperatura).
 
@@ -125,6 +130,7 @@ Toda la música y los efectos se sintetizan en el navegador con Web Audio (`js/a
 ## 8. Estructura
 
 ```
+img/logoMEL.svg    logo del laboratorio (pantalla de inicio)
 index.html         pantalla única (título, lobby online, selección, VS, pelea, resultado)
 js/rng.js          RNG determinista
 js/input.js        teclado (2 jugadores) y gamepad → bits

@@ -2,11 +2,13 @@
 const Game = {
   screen: 'title', canvas: null, ctx: null, acc: 0, last: 0, menuIdx: 0, level: 2, mode: '1p',
   sel: { cur: [0, 1], done: [false, false], t: 0 }, st: null, seed: 0, vsT: 0, online: false, netInfo: '',
-  VERSION: '0.9.0',
-  MENU: [['1 JUGADOR vs CPU', '1p'], ['2 JUGADORES (mismo teclado)', '2p'], ['ONLINE sin servidor (WebRTC, código de sala)', 'peer'], ['ONLINE con servidor WebSocket (tu Ubuntu)', 'ws'], ['NIVEL CPU: ', 'level']],
+  VERSION: '0.9.3', VS_FRAMES: 300, // 5 s de pantalla VS con los controles
+  CONTROLS: [['Mover', 'A / D', '← / →'], ['Saltar', 'W', '↑'], ['Agacharse', 'S', '↓'], ['Golpe ligero', 'J', 'Num 1  (B)'], ['Golpe fuerte', 'K', 'Num 2  (N)'], ['Patada', 'L  (o I)', 'Num 3  (M)'], ['Especial', 'U', 'Num 5  (.)'], ['Overdrive (medidor 100 %)', 'O', 'Num 6  (/)'], ['Burst · Lysis Cancel', 'H', 'Num 0  (Shift der.)'], ['Dash', 'doble toque A/D', 'doble toque ←/→'], ['Bloquear', 'mantener atrás', 'mantener atrás'], ['Lanzador / Barrida', 'S + K  /  S + L', '↓ + Num2  /  ↓ + Num3'], ['LITHO RUSH (embestida)', 'D, D + K', '→, → + Num2'], ['PROTON SHOT (bola de ácido)', 'S, D + J  (↓↘→)', '↓, → + Num1']],
+  MENU: [['1 JUGADOR vs CPU', '1p'], ['2 JUGADORES (mismo teclado)', '2p'], ['ENTRENAMIENTO (muñeco quieto)', 'train'], ['ONLINE sin servidor (WebRTC, código de sala)', 'peer'], ['ONLINE con servidor WebSocket (tu Ubuntu)', 'ws'], ['NIVEL CPU: ', 'level']],
 
   init() {
     this.canvas = document.getElementById('game'); this.ctx = this.canvas.getContext('2d');
+    this.labLogo = new Image(); this.labLogo.src = 'img/logoMEL.svg';
     Input.init(); this.resize(); window.addEventListener('resize', () => this.resize());
     const unlock = () => { Audio.init(); Audio.resume(); if (!Audio.music.on && this.screen === 'title') Audio.playMusic('menu', 3); };
     window.addEventListener('keydown', unlock); window.addEventListener('pointerdown', unlock);
@@ -48,7 +50,7 @@ const Game = {
   },
   click(e) {
     const r = this.canvas.getBoundingClientRect(); const x = (e.clientX - r.left) / r.width * 960, y = (e.clientY - r.top) / r.height * 540;
-    if (this.screen === 'title') { const i = Math.floor((y - 300) / 34); if (i >= 0 && i < this.MENU.length) { this.menuIdx = i; this.chooseMenu(this.MENU[i][1]); } }
+    if (this.screen === 'title') { const i = Math.floor((y - 300) / 31); if (i >= 0 && i < this.MENU.length) { this.menuIdx = i; this.chooseMenu(this.MENU[i][1]); } }
     else if (this.screen === 'select') { const g = this.gridAt(x, y); if (g >= 0 && !this.sel.done[0]) { this.sel.cur[0] = g; this.confirmSel(0); } }
     else if (this.screen === 'result') this.afterResult(true);
   },
@@ -65,9 +67,9 @@ const Game = {
   updateSelect() {
     this.sel.t++;
     if (Input.once('Escape')) { Net.close(); this.goTitle(); return; }
-    const local = this.online ? [Net.side] : this.mode === '2p' ? [0, 1] : [0];
+    const local = this.online ? [Net.side] : this.mode === '2p' ? [0, 1] : this.mode === 'train' ? (this.sel.done[0] ? [1] : [0]) : [0];
     for (const p of local) {
-      const keys = (!this.online && p === 1) ? ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ['Numpad1', 'KeyB', 'NumpadEnter']] : ['KeyA', 'KeyD', 'KeyW', 'KeyS', ['KeyJ', 'Enter', 'Space']];
+      const keys = (!this.online && p === 1 && this.mode !== 'train') ? ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ['Numpad1', 'KeyB', 'NumpadEnter']] : ['KeyA', 'KeyD', 'KeyW', 'KeyS', ['KeyJ', 'Enter', 'Space']];
       if (!this.sel.done[p]) {
         if (Input.once(keys[0])) this.moveCursor(p, -1, 0); if (Input.once(keys[1])) this.moveCursor(p, 1, 0);
         if (Input.once(keys[2])) this.moveCursor(p, 0, -1); if (Input.once(keys[3])) this.moveCursor(p, 0, 1);
@@ -94,7 +96,8 @@ const Game = {
   // ---------- pelea ----------
   startFight(seed, ids, delay) {
     const rng = RNG.make(seed); const stage = rng.int(STAGES.length);
-    this.seed = seed; this.st = Engine.newState(seed, stage, ids, { rounds: 3 });
+    this.seed = seed; this.st = Engine.newState(seed, stage, ids, { rounds: 3, training: this.mode === 'train' });
+    this.dummy = 0;
     Render.reset(); Particles.reset(STAGES[stage].particles);
     if (this.online) Lockstep.start(Net.side, delay);
     this.screen = 'vs'; this.vsT = 0; Input.flush();
@@ -102,13 +105,18 @@ const Game = {
   },
   updateFight() {
     if (!this.online && Input.once('Escape')) { this.goTitle(); return; }
+    if (this.mode === 'train') {
+      if (Input.once('KeyT')) { this.dummy = (this.dummy + 1) % 3; Audio.sfx('select'); }
+      if (Input.once('KeyR')) { Engine.resetRound(this.st); this.st.phase = 'fight'; Render.reset(); }
+      if (Input.once('KeyM')) this.hideMoves = !this.hideMoves;
+    }
     const st = this.st;
     if (st.phase === 'end') { this.screen = 'result'; this.resultT = 0; Audio.playMusic('win', 5); Input.flush(); return; }
     let bits;
     if (this.online) {
       const r = Lockstep.tick(Input.read(0)); this.netInfo = 'ping ' + Math.round(Net.rtt) + ' ms · retraso ' + Lockstep.delay + ' f' + (Lockstep.stalled > 5 ? ' · esperando…' : '');
       if (!r) return; bits = r;
-    } else bits = [Input.read(0), this.mode === '2p' ? Input.read(1) : CPU.decide(st, 1, this.level)];
+    } else bits = [Input.read(0), this.mode === '2p' ? Input.read(1) : this.mode === 'train' ? (this.dummy === 0 ? 0 : this.dummy === 1 ? (st.f[1].face > 0 ? BTN.L : BTN.R) : CPU.decide(st, 1, this.level)) : CPU.decide(st, 1, this.level)];
     Engine.step(st, bits[0], bits[1]); Render.consume(st);
     for (const f of st.f) if (f.st === 'jump' && f.t === 1) Audio.sfx('jump');
   },
@@ -120,7 +128,7 @@ const Game = {
   update() {
     if (this.screen === 'title') this.updateTitle();
     else if (this.screen === 'select') this.updateSelect();
-    else if (this.screen === 'vs') { this.vsT++; if (this.vsT === 1) Audio.sfx('round'); if (this.vsT > 110) { this.screen = 'fight'; Audio.playMusic(STAGES[this.st.stage], this.seed); } }
+    else if (this.screen === 'vs') { this.vsT++; if (this.vsT === 1) Audio.sfx('round'); if (this.vsT > (this.mode === 'train' ? 90 : this.VS_FRAMES) || (this.vsT > 60 && (Input.once('Enter') || Input.once('Space')))) { this.screen = 'fight'; Audio.playMusic(STAGES[this.st.stage], this.seed); } }
     else if (this.screen === 'fight') this.updateFight();
     else if (this.screen === 'result') { this.resultT++; if (this.resultT > 30 && (Input.once('Enter') || Input.once('KeyJ') || Input.once('Space'))) this.afterResult(true); if (Input.once('Escape')) { Net.close(); this.goTitle(); } }
   },
@@ -131,7 +139,7 @@ const Game = {
     if (this.screen === 'title' || this.screen === 'lobby') this.drawTitle(ctx);
     else if (this.screen === 'select') this.drawSelect(ctx);
     else if (this.screen === 'vs') this.drawVS(ctx);
-    else if (this.screen === 'fight' || this.screen === 'result') { Render.draw(ctx, this.st, { netInfo: this.online ? this.netInfo : '' }); if (this.screen === 'result') this.drawResult(ctx); }
+    else if (this.screen === 'fight' || this.screen === 'result') { Render.draw(ctx, this.st, { netInfo: this.online ? this.netInfo : '', training: this.mode === 'train' ? { dummy: this.dummy, hideMoves: this.hideMoves } : null }); if (this.screen === 'result') this.drawResult(ctx); }
   },
   logo(ctx, y, scale = 1) {
     ctx.save(); ctx.translate(480, y); ctx.scale(scale, scale); ctx.textAlign = 'center';
@@ -149,11 +157,12 @@ const Game = {
     const a = Engine.newFighter(ROSTER[(Math.floor(t / 300)) % ROSTER.length].id, 0), b = Engine.newFighter(ROSTER[(Math.floor(t / 300) + 9) % ROSTER.length].id, 1); b.face = -1;
     a.st = 'idle'; b.st = 'idle'; a.t = b.t = t; FighterDraw.draw(ctx, a, t, 150, 470, 1.1); FighterDraw.draw(ctx, b, t, 810, 470, 1.1);
     this.logo(ctx, 150, 1);
-    ctx.textAlign = 'center'; ctx.fillStyle = '#ccc'; ctx.font = '13px Arial'; ctx.fillText('17 taxa de la clase Acidithiobacillia (Moya-Beltrán et al. 2021, ISME J) · 20 escenarios extremófilos', 480, 215);
+    ctx.textAlign = 'center'; ctx.fillStyle = '#ccc'; ctx.font = '13px Arial'; ctx.fillText('17 taxa de la clase Acidithiobacillia · 20 escenarios extremófilos', 480, 215);
+    if (this.labLogo && this.labLogo.complete && this.labLogo.naturalWidth) { const lw = 270, lh = lw * this.labLogo.naturalHeight / this.labLogo.naturalWidth; ctx.drawImage(this.labLogo, 16, 14, lw, lh); }
     for (let i = 0; i < this.MENU.length; i++) {
       const sel = i === this.menuIdx; ctx.fillStyle = sel ? '#ffd34d' : '#fff'; ctx.font = (sel ? 'bold ' : '') + '20px Arial';
       let txt = this.MENU[i][0]; if (this.MENU[i][1] === 'level') txt += ['FÁCIL', 'NORMAL', 'DIFÍCIL'][this.level - 1] + '  (←/→)';
-      ctx.fillText((sel ? '▶ ' : '') + txt, 480, 322 + i * 34);
+      ctx.fillText((sel ? '▶ ' : '') + txt, 480, 320 + i * 31);
     }
     ctx.fillStyle = '#888'; ctx.font = '12px Arial'; ctx.fillText('W/S o ↑/↓ para elegir · Enter para confirmar · 3 rounds de 2:00 · v' + this.VERSION, 480, 520);
     if (this.screen === 'lobby') { ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 0, 960, 540); }
@@ -162,7 +171,7 @@ const Game = {
     const t = Render.t++;
     const g = ctx.createLinearGradient(0, 0, 960, 540); g.addColorStop(0, '#12082a'); g.addColorStop(1, '#2a0a1a'); ctx.fillStyle = g; ctx.fillRect(0, 0, 960, 540);
     ctx.textAlign = 'center'; ctx.fillStyle = '#ffd34d'; ctx.font = 'italic bold 30px Impact, Arial Black, Arial'; ctx.fillText('ELIGE TU TAXÓN', 480, 48);
-    ctx.fillStyle = '#aaa'; ctx.font = '12px Arial'; ctx.fillText(this.online ? 'Tú eres el jugador ' + (Net.side + 1) + ' · WASD mueve · J confirma · ping ' + Math.round(Net.rtt) + ' ms' : 'P1: WASD + J   ·   P2: flechas + Numpad1 (o B)   ·   Esc vuelve', 480, 70);
+    ctx.fillStyle = '#aaa'; ctx.font = '12px Arial'; ctx.fillText(this.online ? 'Tú eres el jugador ' + (Net.side + 1) + ' · WASD mueve · J confirma · ping ' + Math.round(Net.rtt) + ' ms' : this.mode === 'train' ? (this.sel.done[0] ? 'Ahora elige al MUÑECO (WASD + J)' : 'Elige TU personaje (WASD + J) · luego el muñeco') : 'P1: WASD + J   ·   P2: flechas + Numpad1 (o B)   ·   Esc vuelve', 480, 70);
     // grilla 9x2
     for (let i = 0; i < ROSTER.length; i++) {
       const r = ROSTER[i], col = i % 9, row = Math.floor(i / 9), x = 30 + col * 100, y = 120 + row * 100;
@@ -192,14 +201,30 @@ const Game = {
   wrap(ctx, text, x, y, w, lh) { const words = text.split(' '); let line = ''; for (const wd of words) { const test = line + wd + ' '; if (ctx.measureText(test).width > w && line) { ctx.fillText(line, x, y); line = wd + ' '; y += lh; } else line = test; } ctx.fillText(line, x, y); },
   drawVS(ctx) {
     const st = this.st, stage = STAGES[st.stage], t = this.vsT;
-    StageDraw.draw(ctx, stage, 270, Render.t++); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0, 0, 960, 540);
+    StageDraw.draw(ctx, stage, 270, Render.t++); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, 960, 540);
     const k = Math.min(1, t / 20);
-    for (let p = 0; p < 2; p++) { const f = Engine.newFighter(st.f[p].id, p); f.st = 'attack'; f.move = p ? 'K' : 'HP'; f.t = 10; f.face = p ? -1 : 1; FighterDraw.draw(ctx, f, t, p ? 960 - 200 * k : 200 * k, 470, 1.3); }
-    ctx.textAlign = 'center'; ctx.fillStyle = '#ffd34d'; ctx.font = 'italic bold 110px Impact, Arial Black, Arial'; ctx.lineWidth = 8; ctx.strokeStyle = '#1a1018'; ctx.strokeText('VS', 480, 300); ctx.fillText('VS', 480, 300);
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 28px Arial'; ctx.fillText(ROSTER_BY_ID[st.f[0].id].id, 200, 120); ctx.fillText(ROSTER_BY_ID[st.f[1].id].id, 760, 120);
-    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(180, 400, 600, 70);
-    ctx.fillStyle = '#ffd34d'; ctx.font = 'bold 20px Arial'; ctx.fillText(stage.name, 480, 428);
-    ctx.fillStyle = '#eee'; ctx.font = '15px Arial'; ctx.fillText(stage.place + '  ·  pH ' + stage.ph + '  ·  ' + stage.temp, 480, 454);
+    for (let p = 0; p < 2; p++) { const f = Engine.newFighter(st.f[p].id, p); f.st = 'attack'; f.move = p ? 'K' : 'HP'; f.t = 10; f.face = p ? -1 : 1; FighterDraw.draw(ctx, f, t, p ? 960 - 120 * k : 120 * k, 400, 1.0); }
+    ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.font = 'bold 26px Arial'; ctx.fillText(ROSTER_BY_ID[st.f[0].id].id, 120, 60); ctx.fillText(ROSTER_BY_ID[st.f[1].id].id, 840, 60);
+    ctx.fillStyle = '#ffd34d'; ctx.font = 'italic bold 64px Impact, Arial Black, Arial'; ctx.lineWidth = 6; ctx.strokeStyle = '#1a1018'; ctx.strokeText('VS', 480, 70); ctx.fillText('VS', 480, 70);
+    // tabla de controles
+    const two = this.mode === '2p', x0 = 200, w = 560, y0 = 92, rows = this.CONTROLS, rh = 20;
+    ctx.fillStyle = 'rgba(10,5,20,0.85)'; ctx.fillRect(x0, y0, w, rows.length * rh + 52); ctx.strokeStyle = '#ffd34d'; ctx.lineWidth = 2; ctx.strokeRect(x0, y0, w, rows.length * rh + 52);
+    ctx.font = 'bold 13px Arial'; ctx.fillStyle = '#ffd34d'; ctx.textAlign = 'left'; ctx.fillText('CONTROLES', x0 + 14, y0 + 20);
+    ctx.textAlign = 'center'; ctx.fillStyle = '#3af'; ctx.fillText(this.online ? 'TÚ (teclado)' : 'JUGADOR 1', x0 + (two ? 300 : 400), y0 + 20);
+    if (two) { ctx.fillStyle = '#f55'; ctx.fillText('JUGADOR 2', x0 + 460, y0 + 20); }
+    ctx.font = '13px Arial';
+    rows.forEach((r, i) => {
+      const y = y0 + 40 + i * rh; if (i % 2) { ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(x0 + 2, y - 14, w - 4, rh); }
+      ctx.textAlign = 'left'; ctx.fillStyle = '#ddd'; ctx.fillText(r[0], x0 + 14, y);
+      ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.font = 'bold 13px Arial'; ctx.fillText(r[1], x0 + (two ? 300 : 400), y); if (two) ctx.fillText(r[2], x0 + 460, y); ctx.font = '13px Arial';
+    });
+    ctx.textAlign = 'center'; ctx.fillStyle = '#aaa'; ctx.font = '11px Arial'; ctx.fillText('Los golpes se encadenan: ligero → fuerte → patada → especial → overdrive. También funciona gamepad.', 480, y0 + rows.length * rh + 44);
+    // escenario y cuenta regresiva
+    ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(180, 436, 600, 64);
+    ctx.fillStyle = '#ffd34d'; ctx.font = 'bold 18px Arial'; ctx.fillText(stage.name + '  ·  ' + stage.place, 480, 460);
+    ctx.fillStyle = '#eee'; ctx.font = '14px Arial'; ctx.fillText('pH ' + stage.ph + '  ·  ' + stage.temp, 480, 482);
+    const left = Math.ceil((this.VS_FRAMES - t) / 60);
+    ctx.fillStyle = '#ff6a2a'; ctx.font = 'italic bold 22px Impact, Arial Black, Arial'; ctx.fillText('LA PELEA EMPIEZA EN ' + Math.max(0, left) + (t > 60 ? '   ·   Enter para saltar' : ''), 480, 526);
   },
   drawResult(ctx) {
     ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 330, 960, 60);

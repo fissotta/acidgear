@@ -115,6 +115,18 @@ const Render = {
       ctx.fillStyle = bn.col; ctx.font = 'italic bold ' + Math.floor(56 * (0.6 + 0.4 * k)) + 'px Impact, Arial Black, Arial'; ctx.shadowColor = '#000'; ctx.shadowBlur = 12; ctx.fillText(bn.text, W / 2, 262);
       ctx.shadowBlur = 0; ctx.fillStyle = '#fff'; ctx.font = 'bold 16px Arial'; ctx.fillText(bn.sub, W / 2, 292); ctx.globalAlpha = 1;
     }
+    if (opts && opts.training) {
+      const tr = opts.training; ctx.textAlign = 'center'; ctx.fillStyle = '#1a1018'; ctx.fillRect(W / 2 - 44, 14, 88, 46); ctx.fillStyle = '#b9ff3c'; ctx.font = 'bold 13px Arial'; ctx.fillText('ENTRENA-', W / 2, 32); ctx.fillText('MIENTO', W / 2, 48);
+      ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.font = '12px Arial';
+      ctx.fillText('T: muñeco = ' + ['QUIETO', 'BLOQUEA', 'CPU'][tr.dummy] + '   ·   R: reiniciar posiciones   ·   M: ' + (tr.hideMoves ? 'mostrar' : 'ocultar') + ' lista   ·   Esc: salir', 40, 140);
+      if (!tr.hideMoves) {
+        const me = ROSTER_BY_ID[st.f[0].id];
+        const L = [['LISTA DE MOVIMIENTOS', ''], ['J', 'golpe ligero'], ['K', 'golpe fuerte'], ['L / I', 'patada'], ['S + K', 'lanzador (antiaéreo)'], ['S + L', 'barrida'], ['salto + J/K/L', 'golpes aéreos (overhead)'],
+          ['D, D + K', 'LITHO RUSH (embestida con armadura)'], ['S, D + J', 'PROTON SHOT (bola de ácido)'], ['U', me.special.name], ['O (medidor 100 %)', me.od.name], ['H en tu ataque', 'Lysis Cancel'], ['H al recibir golpes', 'Burst de biofilm'], ['A, A / D, D', 'dash atrás / adelante'], ['', 'cadena: J → K → L → U → O']];
+        const x = W - 40 - 330, y = 150; ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(x, y, 330, L.length * 17 + 12);
+        L.forEach((r, i) => { const yy = y + 18 + i * 17; ctx.fillStyle = i === 0 ? '#ffd34d' : '#9ff'; ctx.font = i === 0 ? 'bold 12px Arial' : 'bold 12px Arial'; ctx.fillText(r[0], x + 10, yy); ctx.fillStyle = '#eee'; ctx.font = '12px Arial'; ctx.fillText(r[1], x + 130, yy); });
+      }
+    }
     if (opts && opts.netInfo) { ctx.textAlign = 'right'; ctx.fillStyle = '#9f9'; ctx.font = '11px monospace'; ctx.fillText(opts.netInfo, W - 40, this.H - 48); }
     ctx.restore();
   }

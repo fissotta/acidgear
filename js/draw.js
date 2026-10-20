@@ -33,6 +33,8 @@ const FighterDraw = {
         else if (m === 'jLP') { P.fa = [1.4 * k - 0.4, 0.2]; P.ba = [1.8, 0.4]; P.fl = [0.6, 1.2]; P.bl = [-0.3, 1.0]; }
         else if (m === 'jHP') { P.fa = [0.3 - 1.6 * k, 0.6]; P.ba = [2.0, 0.4]; P.fl = [0.8, 1.2]; P.bl = [-0.2, 1.1]; P.tilt = 0.4 * k; }
         else if (m === 'jK') { P.fl = [1.2 * k - 0.3, 0.1]; P.bl = [-0.6, 1.4]; P.fa = [-0.5, 1.0]; P.ba = [1.6, 0.5]; }
+        else if (m === 'RUSH') { P.fa = [1.5, 0.1]; P.ba = [-1.0, 0.8]; P.tilt = 0.45; P.fl = [-0.6, 0.6]; P.bl = [0.9, 0.2]; P.glow = 0.5; P.expr = 'shout'; }
+        else if (m === 'SHOT') { P.fa = [1.7 * k, 0.4 - 0.3 * k]; P.ba = [1.5 * k, 0.5]; P.tilt = 0.15 * k; P.glow = 0.3; }
         else if (m === 'BURST') { P.fa = [2.4, 0.1]; P.ba = [2.4, 0.1]; P.fl = [0.7, 0.3]; P.bl = [-0.7, 0.3]; P.glow = 1; P.expr = 'shout'; }
       } else { // especial / overdrive
         const T = f.spT || [10, 5, 20]; const k = Math.min(1, t / T[0]); const kind = f.sp ? f.sp.kind : 'proj';
