@@ -66,13 +66,13 @@ const Engine = {
     }
     // KO / tiempo
     if (a.hp <= 0 || b.hp <= 0) {
-      st.phase = 'ko'; st.phaseT = 0; st.shake = 20;
+      st.phase = 'ko'; st.phaseT = 0; st.shake = 20; st.endByKO = true;
       const loser = a.hp <= 0 ? a : b; loser.st = 'ko'; loser.t = 0; loser.vy = 8; loser.vx = -loser.face * 6;
       const w = a.hp <= 0 ? (b.hp <= 0 ? -1 : 1) : 0;
       if (w >= 0) st.wins[w]++; st.events.push({ type: 'ko', winner: w });
       if (a.hp <= 0 && b.hp <= 0) { a.st = 'ko'; b.st = 'ko'; }
     } else if (st.timer <= 0) {
-      st.phase = 'ko'; st.phaseT = 0;
+      st.phase = 'ko'; st.phaseT = 0; st.endByKO = false;
       const w = a.hp > b.hp ? 0 : b.hp > a.hp ? 1 : -1;
       if (w >= 0) st.wins[w]++; st.events.push({ type: 'timeover', winner: w });
       for (const f of st.f) if (f.st !== 'ko') { f.st = 'idle'; f.t = 0; }

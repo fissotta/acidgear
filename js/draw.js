@@ -16,6 +16,8 @@ const FighterDraw = {
     else if (s === 'hit') { P.tilt = -0.3; P.fa = [-0.8, 0.6]; P.ba = [-1.0, 0.4]; P.fl = [0.1, 0.4]; P.bl = [-0.5, 0.5]; P.expr = 'hurt'; P.dy = -2; }
     else if (s === 'launched') { P.tilt = -0.9 - Math.min(0.6, t * 0.02); P.fa = [-1.5, 0.3]; P.ba = [2.0, 0.3]; P.fl = [1.2, 0.8]; P.bl = [0.4, 1.4]; P.expr = 'hurt'; }
     else if (s === 'down' || s === 'ko') { P.lie = true; P.expr = s === 'ko' ? 'ko' : 'hurt'; }
+    else if (s === 'dizzy') { const w = Math.sin(tGlobal * 0.12); P.tilt = w * 0.18; P.dy = 6; P.fa = [-0.5 + w * 0.2, 0.3]; P.ba = [-0.6 - w * 0.2, 0.3]; P.fl = [0.3, 0.5]; P.bl = [-0.3, 0.5]; P.expr = 'dizzy'; }
+    else if (s === 'victory') { const w = Math.sin(tGlobal * 0.15); P.fa = [3.0 + w * 0.1, 0.1]; P.ba = [2.8 - w * 0.1, 0.1]; P.dy = Math.abs(w) * 4; P.expr = 'attack'; }
     else if (s === 'grabbed') { P.dy = -30; P.tilt = 0.4; P.fa = [-1.2, 0.5]; P.ba = [-1.4, 0.5]; P.fl = [0.6, 1.2]; P.bl = [-0.2, 1.3]; P.expr = 'hurt'; }
     else if (s === 'grab') { P.fa = [1.6, 0.2]; P.ba = [1.4, 0.3]; P.tilt = 0.15; P.expr = 'attack'; if (t > 30) { P.fa = [2.6, 0.2]; P.ba = [2.4, 0.3]; } }
     else if (s === 'attack') {
@@ -52,8 +54,8 @@ const FighterDraw = {
   },
 
   // ---- dibujo principal ----
-  draw(ctx, f, tGlobal, screenX, screenY, scale = 1) {
-    const r = ROSTER_BY_ID[f.id], P = this.pose(f, tGlobal), sh = r.shape;
+  draw(ctx, f, tGlobal, screenX, screenY, scale = 1, over) {
+    const r = over ? Object.assign({}, ROSTER_BY_ID[f.id], over) : ROSTER_BY_ID[f.id], P = this.pose(f, tGlobal), sh = r.shape;
     ctx.save(); ctx.translate(screenX, screenY); ctx.scale(f.face * scale, scale);
     if (f.inv > 0 && (Math.floor(tGlobal / 2) % 2)) ctx.globalAlpha = 0.6;
     if (P.lie) { ctx.translate(-10, 0); ctx.rotate(-Math.PI / 2 + 0.1); ctx.translate(0, 28); }
@@ -104,6 +106,7 @@ const FighterDraw = {
   face(ctx, r, expr, BW, topY, t) {
     const ex = BW * 0.12, ey = topY + 24, eyeW = BW * 0.17, eyeH = 11;
     const eye = (x) => {
+      if (expr === 'dizzy') { ctx.strokeStyle = '#1a1018'; ctx.lineWidth = 2.5; ctx.beginPath(); for (let a = 0; a < 12; a += 0.4) ctx.lineTo(x + Math.cos(a + t * 0.3) * a * 0.9, ey + Math.sin(a + t * 0.3) * a * 0.9); ctx.stroke(); return; }
       if (expr === 'ko') { ctx.strokeStyle = '#1a1018'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - 6, ey - 6); ctx.lineTo(x + 6, ey + 6); ctx.moveTo(x + 6, ey - 6); ctx.lineTo(x - 6, ey + 6); ctx.stroke(); return; }
       ctx.fillStyle = '#1a1018'; ctx.beginPath(); ctx.ellipse(x, ey, eyeW + 2, eyeH + 2 + (expr === 'hurt' ? 4 : 0), 0, 0, 7); ctx.fill();
       ctx.fillStyle = r.eye; ctx.beginPath(); ctx.ellipse(x, ey, eyeW, eyeH + (expr === 'hurt' ? 4 : 0), 0, 0, 7); ctx.fill();
@@ -121,7 +124,7 @@ const FighterDraw = {
     if (expr === 'shout' || expr === 'hurt') { ctx.beginPath(); ctx.ellipse(ex, my + 2, 9, expr === 'shout' ? 12 : 8, 0, 0, 7); ctx.fill(); ctx.fillStyle = '#e04050'; ctx.beginPath(); ctx.ellipse(ex, my + 6, 5, 4, 0, 0, 7); ctx.fill(); }
     else if (expr === 'attack') { ctx.fillRect(ex - 12, my - 3, 26, 8); ctx.fillStyle = '#fff'; for (let i = 0; i < 4; i++) ctx.fillRect(ex - 10 + i * 6, my - 2, 4, 3); }
     else if (expr === 'block') { ctx.fillRect(ex - 8, my - 1, 18, 4); }
-    else if (expr === 'ko') { ctx.beginPath(); ctx.arc(ex, my + 6, 7, Math.PI, 0); ctx.fill(); }
+    else if (expr === 'ko' || expr === 'dizzy') { ctx.beginPath(); ctx.arc(ex, my + 6, 7, Math.PI, 0); ctx.fill(); }
     else { ctx.beginPath(); ctx.moveTo(ex - 10, my - 2); ctx.quadraticCurveTo(ex + 2, my + 10, ex + 14, my - 4); ctx.lineWidth = 3; ctx.strokeStyle = '#1a1018'; ctx.stroke(); }
   },
   accessories(ctx, r, sh, BW, BH, topY, t) {

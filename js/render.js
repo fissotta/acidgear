@@ -32,22 +32,23 @@ const Render = {
     const W = this.W, H = this.H; this.t++;
     const [a, b] = st.f; const stage = STAGES[st.stage];
     let cx = (a.x + b.x) / 2; cx = Math.max(W / 2, Math.min(ARENA_W - W / 2, cx)); this.camX = cx - W / 2;
-    let shx = 0, shy = 0; if (st.shake > 0) { shx = (Math.random() - 0.5) * st.shake; shy = (Math.random() - 0.5) * st.shake; }
+    let shx = 0, shy = 0; const shk = st.shake + (this.shakeExtra || 0); if (this.shakeExtra > 0) this.shakeExtra--; if (shk > 0) { shx = (Math.random() - 0.5) * shk; shy = (Math.random() - 0.5) * shk; }
     ctx.save(); ctx.translate(shx, shy);
     StageDraw.draw(ctx, stage, this.camX, this.t);
     Particles.update(W, H, this.GY); Particles.draw(ctx);
     // sombras
-    for (const f of st.f) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(this.sx(f.x), this.GY + 4, Math.max(8, 40 - f.y * 0.05), 9, 0, 0, 7); ctx.fill(); }
+    for (const f of (opts && opts.hideFighters ? [] : st.f)) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(this.sx(f.x), this.GY + 4, Math.max(8, 40 - f.y * 0.05), 9, 0, 0, 7); ctx.fill(); }
     // proyectiles detrás
     for (const p of st.proj) if (p.kind === 'column' || p.kind === 'wall' || p.kind === 'wave') this.proj(ctx, p);
     // luchadores (el que ataca va adelante)
     const order = a.st === 'attack' ? [b, a] : [a, b];
-    for (const f of order) {
+    for (const f of (opts && opts.hideFighters ? [] : order)) {
       if (f.auraT > 0) { ctx.fillStyle = ROSTER_BY_ID[f.id].special.color; ctx.globalAlpha = 0.25 + Math.sin(this.t * 0.4) * 0.1; ctx.beginPath(); ctx.arc(this.sx(f.x), this.sy(f.y + 80), 120, 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
       if (f.slow > 0) { ctx.fillStyle = 'rgba(180,230,255,0.35)'; ctx.beginPath(); ctx.arc(this.sx(f.x), this.sy(f.y + 75), 60, 0, 7); ctx.fill(); }
       FighterDraw.draw(ctx, f, this.t, this.sx(f.x), this.sy(f.y));
       if (f.absorbT > 0) { ctx.strokeStyle = '#ffe08a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(this.sx(f.x), this.sy(f.y + 80), 100 + Math.sin(this.t) * 4, 0, 7); ctx.stroke(); }
     }
+    if (opts && opts.hideFighters) st.proj.length = 0;
     for (const p of st.proj) if (!(p.kind === 'column' || p.kind === 'wall' || p.kind === 'wave')) this.proj(ctx, p);
     // efectos
     this.fx = this.fx.filter(e => e.t > 0);
@@ -111,9 +112,9 @@ const Render = {
     if (this.banner && this.banner.t > 0) {
       const bn = this.banner; bn.t--; ctx.textAlign = 'center';
       const k = Math.min(1, (bn.fight ? 110 - bn.t : 30) / 12); ctx.globalAlpha = bn.t < 15 ? bn.t / 15 : 1;
-      ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0, 200, W, 110);
-      ctx.fillStyle = bn.col; ctx.font = 'italic bold ' + Math.floor(56 * (0.6 + 0.4 * k)) + 'px Impact, Arial Black, Arial'; ctx.shadowColor = '#000'; ctx.shadowBlur = 12; ctx.fillText(bn.text, W / 2, 262);
-      ctx.shadowBlur = 0; ctx.fillStyle = '#fff'; ctx.font = 'bold 16px Arial'; ctx.fillText(bn.sub, W / 2, 292); ctx.globalAlpha = 1;
+      const by = bn.y || 200; ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0, by, W, 110);
+      ctx.fillStyle = bn.col; ctx.font = 'italic bold ' + Math.floor(56 * (0.6 + 0.4 * k)) + 'px Impact, Arial Black, Arial'; ctx.shadowColor = '#000'; ctx.shadowBlur = 12; ctx.fillText(bn.text, W / 2, by + 62);
+      ctx.shadowBlur = 0; ctx.fillStyle = '#fff'; ctx.font = 'bold 16px Arial'; ctx.fillText(bn.sub, W / 2, by + 92); ctx.globalAlpha = 1;
     }
     if (opts && opts.training) {
       const tr = opts.training; ctx.textAlign = 'center'; ctx.fillStyle = '#1a1018'; ctx.fillRect(W / 2 - 44, 14, 88, 46); ctx.fillStyle = '#b9ff3c'; ctx.font = 'bold 13px Arial'; ctx.fillText('ENTRENA-', W / 2, 32); ctx.fillText('MIENTO', W / 2, 48);

@@ -2,7 +2,7 @@
 
 Juego de pelea 2D estilo Guilty Gear entre los 17 taxa de la clase *Acidithiobacillia* (Fig. 3A de Moya-Beltrán et al. 2021, ISME J 15:3221). Página web estática: corre en GitHub Pages sin ningún servidor, incluso el modo online de 2 jugadores.
 
-Versión 0.9.8 (oct 2026). Carpeta: `/Users/issotta/proyectos/acidgear`.
+Versión 0.9.9 (oct 2026). Carpeta: `/Users/issotta/proyectos/acidgear`.
 
 ---
 
@@ -123,6 +123,10 @@ Formato: 3 rounds de 2:00, gana el que llega a 2. Escenario al azar entre 20 (ap
 | AMS | *'Am. sulfuriphilus'* | Nitrogenase Nova (rayo que neutraliza proyectiles) | N₂→NH₃ Overload |
 | TTP | *T. tepidarius* | Roman Bath Steam (puño de vapor) | cbb₃ Overload (3 golpes) |
 
+## 6b. Fatalities
+
+Cuando la pelea termina por KO (no por tiempo), el perdedor queda de pie mareado con el cartel **¡LÍSALO!**, el ganador camina hacia él y ejecuta solo su remate (no hay que apretar nada). Cada taxón tiene el suyo: AFE Biolixiviación total (relámpagos de Fe³⁺ y se derrite) · AFG Prensa de óxido (lo aplasta) · AFD Reducción férrica (le roba los electrones y se desmorona gris) · AFP Hambre de hierro (lo drena hasta encogerlo) · AFV Cero absoluto (lo congela y lo rompe en pedazos) · AFN Martillo pH 1,8 (uppercut al cielo) · ATH Lluvia sulfúrica (lo derrite) · ASU Arrastre ferruginoso (la corriente se lo lleva) · ACO Entierro de hormigón (bloques encima) · AMO Flujo piroclástico (estatua de ceniza) · AMA Tsunami salino (se lo lleva la ola) · FCA Combustión a 45 °C (lo quema) · ICO Erupción del Copahue (columna de lava) · IYE Old Faithful (géiser) · ITA Niebla cortante (lo rebana) · AMS Nova de nitrógeno (lo vaporiza) · TTP Baño romano a presión (lo cuece al vapor hasta que revienta). El código está en `js/fatality.js`.
+
 ## 7. Música
 
 Toda la música y los efectos se sintetizan en el navegador con Web Audio (`js/audio.js`): guitarra distorsionada, bajo, doble bombo, lead. Cada escenario tiene tonalidad, escala y tempo propios (campo `key`, `scale`, `tempo` en `js/stages.js`) y el riff se genera con la semilla de la partida. El volumen está abajo a la derecha. Si quieres sumar canciones propias (como en Copahue FM), avísame y agrego una carpeta `music/` con lista `TRACKS` igual que `copahue-v8/js/radio.js`.
@@ -142,6 +146,7 @@ js/audio.js        música metal procedural y efectos
 js/ai.js           CPU (3 niveles)
 js/net.js          WebRTC (PeerJS) / WebSocket + lockstep
 js/render.js       escena, proyectiles, efectos, HUD
+js/fatality.js     los 17 remates (cinemática final)
 js/main.js         pantallas y bucle
 server/server.js   servidor Node opcional (modo B)
 tools/serve.py     servidor local de prueba

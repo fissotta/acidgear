@@ -2,7 +2,7 @@
 const Game = {
   screen: 'title', canvas: null, ctx: null, acc: 0, last: 0, menuIdx: 0, level: 2, mode: '1p',
   sel: { cur: [0, 1], done: [false, false], t: 0 }, st: null, seed: 0, vsT: 0, online: false, netInfo: '',
-  VERSION: '0.9.8', VS_FRAMES: 300, // 5 s de pantalla VS con los controles
+  VERSION: '0.9.9', VS_FRAMES: 300, // 5 s de pantalla VS con los controles
   CONTROLS: [['Mover', 'A / D', '← / →'], ['Saltar', 'W', '↑'], ['Agacharse', 'S', '↓'], ['Golpe ligero', 'J', 'Num 1  (B)'], ['Golpe fuerte', 'K', 'Num 2  (N)'], ['Patada', 'L  (o I)', 'Num 3  (M)'], ['Especial', 'U', 'Num 5  (.)'], ['Overdrive (medidor 100 %)', 'O', 'Num 6  (/)'], ['Burst · Lysis Cancel', 'H', 'Num 0  (Shift der.)'], ['Dash', 'doble toque A/D', 'doble toque ←/→'], ['Bloquear', 'mantener atrás', 'mantener atrás'], ['Pausa', 'Enter', 'Enter'], ['Lanzador / Barrida', 'S + K  /  S + L', '↓ + Num2  /  ↓ + Num3'], ['LITHO RUSH (embestida)', 'D, D + K', '→, → + Num2'], ['PROTON SHOT (bola de ácido)', 'S, D + J  (↓↘→)', '↓, → + Num1']],
   MENU: [['1 JUGADOR vs CPU', '1p'], ['2 JUGADORES (mismo teclado)', '2p'], ['ENTRENAMIENTO (muñeco quieto)', 'train'], ['ONLINE sin servidor (WebRTC, código de sala)', 'peer'], ['ONLINE con servidor WebSocket (tu Ubuntu)', 'ws'], ['NIVEL CPU: ', 'level']],
 
@@ -120,7 +120,10 @@ const Game = {
       if (Input.once('KeyM')) this.hideMoves = !this.hideMoves;
     }
     const st = this.st;
-    if (st.phase === 'end') { this.screen = 'result'; this.resultT = 0; Audio.playMusic('win', 5); Input.flush(); return; }
+    if (st.phase === 'end') {
+      if (st.endByKO && st.winner >= 0) { this.screen = 'finish'; Fatality.start(st); Audio.stopMusic(); Input.flush(); return; }
+      this.screen = 'result'; this.resultT = 0; Audio.playMusic('win', 5); Input.flush(); return;
+    }
     let bits;
     if (this.online) {
       const r = Lockstep.tick(Input.read(0)); this.netInfo = 'ping ' + Math.round(Net.rtt) + ' ms · retraso ' + Lockstep.delay + ' f' + (Lockstep.stalled > 5 ? ' · esperando…' : '');
@@ -139,6 +142,7 @@ const Game = {
     else if (this.screen === 'select') this.updateSelect();
     else if (this.screen === 'vs') { this.vsT++; if (this.vsT === 1) Audio.sfx('round'); if (this.vsT > (this.mode === 'train' ? 90 : this.VS_FRAMES) || (this.vsT > 60 && (Input.once('Enter') || Input.once('Space')))) { this.screen = 'fight'; Audio.playMusic(STAGES[this.st.stage], this.seed); } }
     else if (this.screen === 'fight') this.updateFight();
+    else if (this.screen === 'finish') { Fatality.update(); if (Fatality.done) { this.screen = 'result'; this.resultT = 0; Render.banner = { text: this.st.f[this.st.winner].id + ' WINS', sub: ROSTER_BY_ID[this.st.f[this.st.winner].id].name + ' · ' + Fatality.fat.name, t: 99999, col: '#ffd34d', y: 130 }; Audio.playMusic('win', 5); Input.flush(); } }
     else if (this.screen === 'result') { this.resultT++; if (this.resultT > 30 && (Input.once('Enter') || Input.once('KeyJ') || Input.once('Space'))) this.afterResult(true); if (Input.once('Escape')) { Net.close(); this.goTitle(); } }
   },
 
@@ -148,7 +152,9 @@ const Game = {
     if (this.screen === 'title' || this.screen === 'lobby') this.drawTitle(ctx);
     else if (this.screen === 'select') this.drawSelect(ctx);
     else if (this.screen === 'vs') this.drawVS(ctx);
-    else if (this.screen === 'fight' || this.screen === 'result') { Render.draw(ctx, this.st, { netInfo: this.online ? this.netInfo : '', training: this.mode === 'train' ? { dummy: this.dummy, hideMoves: this.hideMoves } : null }); if (this.screen === 'result') this.drawResult(ctx); if (this.paused && this.screen === 'fight') this.drawPause(ctx); }
+    else if (this.screen === 'finish') { Render.draw(ctx, this.st, { hideFighters: true }); Fatality.draw(ctx); }
+    else if (this.screen === 'fight' || this.screen === 'result') { Render.draw(ctx, this.st, { netInfo: this.online ? this.netInfo : '', training: this.mode === 'train' ? { dummy: this.dummy, hideMoves: this.hideMoves } : null, hideFighters: this.screen === 'result' && this.st.endByKO && this.st.winner >= 0 });
+      if (this.screen === 'result' && this.st.endByKO && this.st.winner >= 0) Fatality.draw(ctx); if (this.screen === 'result') this.drawResult(ctx); if (this.paused && this.screen === 'fight') this.drawPause(ctx); }
   },
   logo(ctx, y, scale = 1) {
     ctx.save(); ctx.translate(480, y); ctx.scale(scale, scale); ctx.textAlign = 'center';
