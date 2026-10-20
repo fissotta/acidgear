@@ -2,8 +2,8 @@
 const Game = {
   screen: 'title', canvas: null, ctx: null, acc: 0, last: 0, menuIdx: 0, level: 2, mode: '1p',
   sel: { cur: [0, 1], done: [false, false], t: 0 }, st: null, seed: 0, vsT: 0, online: false, netInfo: '',
-  VERSION: '0.9.6', VS_FRAMES: 300, // 5 s de pantalla VS con los controles
-  CONTROLS: [['Mover', 'A / D', '← / →'], ['Saltar', 'W', '↑'], ['Agacharse', 'S', '↓'], ['Golpe ligero', 'J', 'Num 1  (B)'], ['Golpe fuerte', 'K', 'Num 2  (N)'], ['Patada', 'L  (o I)', 'Num 3  (M)'], ['Especial', 'U', 'Num 5  (.)'], ['Overdrive (medidor 100 %)', 'O', 'Num 6  (/)'], ['Burst · Lysis Cancel', 'H', 'Num 0  (Shift der.)'], ['Dash', 'doble toque A/D', 'doble toque ←/→'], ['Bloquear', 'mantener atrás', 'mantener atrás'], ['Lanzador / Barrida', 'S + K  /  S + L', '↓ + Num2  /  ↓ + Num3'], ['LITHO RUSH (embestida)', 'D, D + K', '→, → + Num2'], ['PROTON SHOT (bola de ácido)', 'S, D + J  (↓↘→)', '↓, → + Num1']],
+  VERSION: '0.9.8', VS_FRAMES: 300, // 5 s de pantalla VS con los controles
+  CONTROLS: [['Mover', 'A / D', '← / →'], ['Saltar', 'W', '↑'], ['Agacharse', 'S', '↓'], ['Golpe ligero', 'J', 'Num 1  (B)'], ['Golpe fuerte', 'K', 'Num 2  (N)'], ['Patada', 'L  (o I)', 'Num 3  (M)'], ['Especial', 'U', 'Num 5  (.)'], ['Overdrive (medidor 100 %)', 'O', 'Num 6  (/)'], ['Burst · Lysis Cancel', 'H', 'Num 0  (Shift der.)'], ['Dash', 'doble toque A/D', 'doble toque ←/→'], ['Bloquear', 'mantener atrás', 'mantener atrás'], ['Pausa', 'Enter', 'Enter'], ['Lanzador / Barrida', 'S + K  /  S + L', '↓ + Num2  /  ↓ + Num3'], ['LITHO RUSH (embestida)', 'D, D + K', '→, → + Num2'], ['PROTON SHOT (bola de ácido)', 'S, D + J  (↓↘→)', '↓, → + Num1']],
   MENU: [['1 JUGADOR vs CPU', '1p'], ['2 JUGADORES (mismo teclado)', '2p'], ['ENTRENAMIENTO (muñeco quieto)', 'train'], ['ONLINE sin servidor (WebRTC, código de sala)', 'peer'], ['ONLINE con servidor WebSocket (tu Ubuntu)', 'ws'], ['NIVEL CPU: ', 'level']],
 
   init() {
@@ -107,10 +107,12 @@ const Game = {
     this.dummy = 0;
     Render.reset(); Particles.reset(STAGES[stage].particles);
     if (this.online) Lockstep.start(Net.side, delay);
-    this.screen = 'vs'; this.vsT = 0; Input.flush();
+    this.screen = 'vs'; this.vsT = 0; this.paused = false; Input.flush();
     Audio.stopMusic();
   },
   updateFight() {
+    if (!this.online && (Input.once('Enter') || Input.once('NumpadEnter'))) { this.paused = !this.paused; Audio.sfx('select'); Input.flush(); if (this.paused) Audio.musicBus && (Audio.musicBus.gain.value = 0.15); else Audio.musicBus && (Audio.musicBus.gain.value = Audio.musicVol); }
+    if (this.paused) { if (Input.once('Escape')) { this.paused = false; Audio.musicBus && (Audio.musicBus.gain.value = Audio.musicVol); this.goTitle(); } return; }
     if (!this.online && Input.once('Escape')) { this.goTitle(); return; }
     if (this.mode === 'train') {
       if (Input.once('KeyT')) { this.dummy = (this.dummy + 1) % 3; Audio.sfx('select'); }
@@ -146,7 +148,7 @@ const Game = {
     if (this.screen === 'title' || this.screen === 'lobby') this.drawTitle(ctx);
     else if (this.screen === 'select') this.drawSelect(ctx);
     else if (this.screen === 'vs') this.drawVS(ctx);
-    else if (this.screen === 'fight' || this.screen === 'result') { Render.draw(ctx, this.st, { netInfo: this.online ? this.netInfo : '', training: this.mode === 'train' ? { dummy: this.dummy, hideMoves: this.hideMoves } : null }); if (this.screen === 'result') this.drawResult(ctx); }
+    else if (this.screen === 'fight' || this.screen === 'result') { Render.draw(ctx, this.st, { netInfo: this.online ? this.netInfo : '', training: this.mode === 'train' ? { dummy: this.dummy, hideMoves: this.hideMoves } : null }); if (this.screen === 'result') this.drawResult(ctx); if (this.paused && this.screen === 'fight') this.drawPause(ctx); }
   },
   logo(ctx, y, scale = 1) {
     ctx.save(); ctx.translate(480, y); ctx.scale(scale, scale); ctx.textAlign = 'center';
@@ -232,6 +234,27 @@ const Game = {
     ctx.fillStyle = '#eee'; ctx.font = '14px Arial'; ctx.fillText('pH ' + stage.ph + '  ·  ' + stage.temp, 480, 482);
     const left = Math.ceil((this.VS_FRAMES - t) / 60);
     ctx.fillStyle = '#ff6a2a'; ctx.font = 'italic bold 22px Impact, Arial Black, Arial'; ctx.fillText('LA PELEA EMPIEZA EN ' + Math.max(0, left) + (t > 60 ? '   ·   Enter para saltar' : ''), 480, 526);
+  },
+  drawPause(ctx) {
+    const st = this.st; ctx.fillStyle = 'rgba(5,2,12,0.82)'; ctx.fillRect(0, 0, 960, 540);
+    ctx.textAlign = 'center'; ctx.fillStyle = '#ffd34d'; ctx.font = 'italic bold 44px Impact, Arial Black, Arial'; ctx.fillText('PAUSA', 480, 52);
+    ctx.fillStyle = '#aaa'; ctx.font = '12px Arial'; ctx.fillText('Enter: seguir   ·   Esc: salir al título', 480, 72);
+    const cols = [{ x: 30, w: 440, col: '#3af', side: 0, keys: ['A / D', 'W', 'S', 'J', 'K', 'L  (o I)', 'U', 'O', 'H', 'D, D + K', 'S, D + J', 'A, A  /  D, D', 'S + K  /  S + L', 'W tras K / L / S+K'] },
+                  { x: 490, w: 440, col: '#f55', side: 1, keys: ['← / →', '↑', '↓', 'Num 1  (B)', 'Num 2  (N)', 'Num 3  (M)', 'Num 5  (.)', 'Num 6  (/)', 'Num 0  (Shift der.)', '→, → + Num2', '↓, → + Num1', '←, ←  /  →, →', '↓ + Num2  /  ↓ + Num3', '↑ tras Num2 / Num3'] }];
+    const names = ['Mover', 'Saltar', 'Agacharse', 'Golpe ligero', 'Golpe fuerte', 'Patada', 'Especial', 'Overdrive (medidor 100 %)', 'Burst / Lysis Cancel', 'LITHO RUSH', 'PROTON SHOT', 'Dash atrás / adelante', 'Lanzador / Barrida', 'Jump cancel'];
+    for (const c of cols) {
+      const f = st.f[c.side], r = ROSTER_BY_ID[f.id], who = c.side === 0 ? (this.mode === '2p' ? 'JUGADOR 1' : 'TÚ') : (this.mode === '2p' ? 'JUGADOR 2' : this.mode === 'train' ? 'MUÑECO' : 'CPU');
+      ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.fillRect(c.x, 86, c.w, 440); ctx.strokeStyle = c.col; ctx.lineWidth = 2; ctx.strokeRect(c.x, 86, c.w, 440);
+      ctx.textAlign = 'left'; ctx.fillStyle = c.col; ctx.font = 'bold 16px Arial'; ctx.fillText(who + ' · ' + r.id + ' ' + r.name, c.x + 12, 108);
+      const sx = c.side === 0 ? c.x + 60 : c.x + c.w - 60; const fg = Engine.newFighter(r.id, c.side); fg.st = 'idle'; fg.t = Render.t; fg.face = c.side === 0 ? 1 : -1;
+      ctx.save(); ctx.beginPath(); ctx.rect(c.x, 110, c.w, 110); ctx.clip(); FighterDraw.draw(ctx, fg, Render.t, sx, 215, 0.6); ctx.restore();
+      ctx.font = '12px Arial';
+      names.forEach((n, i) => { const y = 136 + i * 20, tx = c.side === 0 ? c.x + 130 : c.x + 14; if (i % 2) { ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(c.x + 2, y - 13, c.w - 4, 20); }
+        ctx.fillStyle = '#ddd'; ctx.font = '12px Arial'; ctx.fillText(n, tx, y); ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Arial'; ctx.fillText(c.keys[i], tx + 160, y); });
+      const y0 = 136 + names.length * 20 + 6; ctx.fillStyle = '#ffd34d'; ctx.font = 'bold 12px Arial'; ctx.fillText('ESPECIAL: ' + r.special.name, c.x + 14, y0); ctx.fillStyle = '#ff4df0'; ctx.fillText('OVERDRIVE: ' + r.od.name, c.x + 14, y0 + 18);
+      ctx.fillStyle = '#9ff'; ctx.font = '11px Arial';
+      this.wrap(ctx, 'COMBOS: ligero → ligero → fuerte → patada → especial → overdrive. Salto + golpe = overhead. Tras fuerte/patada/lanzador: W y seguir en el aire. El daño baja 10 % por golpe (mín. 35 %). Burst: 1 por round. Lysis Cancel: 50 % del medidor.', c.x + 14, y0 + 36, c.w - 28, 14);
+    }
   },
   drawResult(ctx) {
     ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 330, 960, 60);
