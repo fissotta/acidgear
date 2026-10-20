@@ -2,7 +2,7 @@
 const Game = {
   screen: 'title', canvas: null, ctx: null, acc: 0, last: 0, menuIdx: 0, level: 2, mode: '1p',
   sel: { cur: [0, 1], done: [false, false], t: 0 }, st: null, seed: 0, vsT: 0, online: false, netInfo: '',
-  VERSION: '0.9.5', VS_FRAMES: 300, // 5 s de pantalla VS con los controles
+  VERSION: '0.9.6', VS_FRAMES: 300, // 5 s de pantalla VS con los controles
   CONTROLS: [['Mover', 'A / D', '← / →'], ['Saltar', 'W', '↑'], ['Agacharse', 'S', '↓'], ['Golpe ligero', 'J', 'Num 1  (B)'], ['Golpe fuerte', 'K', 'Num 2  (N)'], ['Patada', 'L  (o I)', 'Num 3  (M)'], ['Especial', 'U', 'Num 5  (.)'], ['Overdrive (medidor 100 %)', 'O', 'Num 6  (/)'], ['Burst · Lysis Cancel', 'H', 'Num 0  (Shift der.)'], ['Dash', 'doble toque A/D', 'doble toque ←/→'], ['Bloquear', 'mantener atrás', 'mantener atrás'], ['Lanzador / Barrida', 'S + K  /  S + L', '↓ + Num2  /  ↓ + Num3'], ['LITHO RUSH (embestida)', 'D, D + K', '→, → + Num2'], ['PROTON SHOT (bola de ácido)', 'S, D + J  (↓↘→)', '↓, → + Num1']],
   MENU: [['1 JUGADOR vs CPU', '1p'], ['2 JUGADORES (mismo teclado)', '2p'], ['ENTRENAMIENTO (muñeco quieto)', 'train'], ['ONLINE sin servidor (WebRTC, código de sala)', 'peer'], ['ONLINE con servidor WebSocket (tu Ubuntu)', 'ws'], ['NIVEL CPU: ', 'level']],
 

@@ -5,17 +5,24 @@ const Net = {
   code() { const A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c = ''; for (let i = 0; i < 4; i++) c += A[Math.floor(Math.random() * A.length)]; return c; },
 
   // ---- Modo A: WebRTC (PeerJS). Host crea la sala con un código; el invitado se conecta con él. ----
-  peerOk() { if (typeof Peer === 'undefined') { this.status('No se pudo cargar PeerJS (sin Internet o CDN bloqueado). Usa el modo con servidor WebSocket.'); return false; } return true; },
-  hostPeer(code) {
-    if (!this.peerOk()) return;
+  // PeerJS se carga sólo cuando se elige el modo WebRTC (así la página nunca se queda en blanco esperando al CDN)
+  loadPeer(cb) {
+    if (typeof Peer !== 'undefined') { cb(); return; }
+    this.status('Cargando PeerJS…');
+    const sc = document.createElement('script'); sc.src = 'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';
+    sc.onload = () => cb(); sc.onerror = () => this.status('No se pudo cargar PeerJS (sin Internet o CDN bloqueado). Usa el modo con servidor WebSocket.');
+    document.head.appendChild(sc);
+  },
+  hostPeer(code) { this.loadPeer(() => this._hostPeer(code)); },
+  _hostPeer(code) {
     this.mode = 'peer'; this.side = 0; this.status('Creando sala ' + code + '…');
     this.peer = new Peer('acidgear-' + code, { debug: 0 });
     this.peer.on('open', () => this.status('Sala ' + code + ' lista. Esperando al rival… (dale el código)'));
     this.peer.on('connection', c => { this.conn = c; this.bindPeer(c); });
     this.peer.on('error', e => this.status('Error PeerJS: ' + e.type + (e.type === 'unavailable-id' ? ' (código en uso, prueba otro)' : '')));
   },
-  joinPeer(code) {
-    if (!this.peerOk()) return;
+  joinPeer(code) { this.loadPeer(() => this._joinPeer(code)); },
+  _joinPeer(code) {
     this.mode = 'peer'; this.side = 1; this.status('Conectando a la sala ' + code + '…');
     this.peer = new Peer(undefined, { debug: 0 });
     this.peer.on('open', () => { const c = this.peer.connect('acidgear-' + code, { reliable: true, serialization: 'json' }); this.conn = c; this.bindPeer(c); });
