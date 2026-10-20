@@ -2,7 +2,7 @@
 
 Juego de pelea 2D estilo Guilty Gear entre los 17 taxa de la clase *Acidithiobacillia* (Fig. 3A de Moya-Beltrán et al. 2021, ISME J 15:3221). Página web estática: corre en GitHub Pages sin ningún servidor, incluso el modo online de 2 jugadores.
 
-Versión 0.9.10 (oct 2026). Carpeta: `/Users/issotta/proyectos/acidgear`.
+Versión 0.9.11 (oct 2026). Carpeta: `/Users/issotta/proyectos/acidgear`.
 
 ---
 
@@ -95,7 +95,7 @@ Imprime una URL tipo `https://algo-random.trycloudflare.com`. En el juego (desde
 | Overdrive (medidor al 100 %) | O | Numpad 6 (o /) | RT |
 | Burst de biofilm / Lysis Cancel | H | Numpad 0 (o Shift der.) | LB |
 
-**Enter pausa** la pelea (local): la pantalla de pausa muestra las teclas, el especial, el Overdrive y los combos de los dos jugadores; Esc desde la pausa vuelve al título. Online y 1 jugador siempre usan los controles del jugador 1. Doble toque adelante/atrás = dash. Abajo + K (fuerte) = lanzador (antiaéreo). Abajo + L (patada) = barrida (baja). Golpes en el aire = overhead (hay que bloquear de pie). Bloqueo: mantener atrás; abajo+atrás bloquea bajos.
+**Enter pausa** la pelea (local): la pantalla de pausa muestra las teclas, el especial, el Overdrive y los combos de los dos jugadores; Esc desde la pausa vuelve al título. Online y 1 jugador siempre usan los controles del jugador 1; en los menús y la selección de personaje de 1 jugador, entrenamiento y online sirven tanto WASD + J como flechas + Enter. En 2 jugadores, P1 elige con WASD + J y P2 con flechas + Numpad 1 (o B). Doble toque adelante/atrás = dash. Abajo + K (fuerte) = lanzador (antiaéreo). Abajo + L (patada) = barrida (baja). Golpes en el aire = overhead (hay que bloquear de pie). Bloqueo: mantener atrás; abajo+atrás bloquea bajos.
 
 Sistemas estilo GG: los golpes se cancelan en cadena ligero → ligero → fuerte → patada → Especial → Overdrive (gatling). Tras un fuerte, una patada o el lanzador (S+K) puedes saltar (W) y seguir el combo en el aire con J/K/L (jump cancel). El contador muestra los golpes y el daño acumulado. El **Gradiente de protones** (medidor) sube al pegar, bloquear y acercarse; al 100 % habilita el Overdrive (O). **Lysis Cancel** (H durante tu propio ataque, cuesta 50 %) cancela cualquier golpe. **Burst de biofilm** (H mientras te pegan, 1 por round) empuja al rival. Combos con escalado de daño.
 

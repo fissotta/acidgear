@@ -2,7 +2,7 @@
 const Game = {
   screen: 'title', canvas: null, ctx: null, acc: 0, last: 0, menuIdx: 0, level: 2, mode: '1p',
   sel: { cur: [0, 1], done: [false, false], t: 0 }, st: null, seed: 0, vsT: 0, online: false, netInfo: '',
-  VERSION: '0.9.10', VS_FRAMES: 300, // 5 s de pantalla VS con los controles
+  VERSION: '0.9.11', VS_FRAMES: 300, // 5 s de pantalla VS con los controles
   CONTROLS: [['Mover', 'A / D', '← / →'], ['Saltar', 'W', '↑'], ['Agacharse', 'S', '↓'], ['Golpe ligero', 'J', 'Num 1  (B)'], ['Golpe fuerte', 'K', 'Num 2  (N)'], ['Patada', 'L  (o I)', 'Num 3  (M)'], ['Especial', 'U', 'Num 5  (.)'], ['Overdrive (medidor 100 %)', 'O', 'Num 6  (/)'], ['Burst · Lysis Cancel', 'H', 'Num 0  (Shift der.)'], ['Dash', 'doble toque A/D', 'doble toque ←/→'], ['Bloquear', 'mantener atrás', 'mantener atrás'], ['Pausa', 'Enter', 'Enter'], ['Lanzador / Barrida', 'S + K  /  S + L', '↓ + Num2  /  ↓ + Num3'], ['LITHO RUSH (embestida)', 'D, D + K', '→, → + Num2'], ['PROTON SHOT (bola de ácido)', 'S, D + J  (↓↘→)', '↓, → + Num1']],
   MENU: [['1 JUGADOR vs CPU', '1p'], ['2 JUGADORES (mismo teclado)', '2p'], ['ENTRENAMIENTO (muñeco quieto)', 'train'], ['ONLINE sin servidor (WebRTC, código de sala)', 'peer'], ['ONLINE con servidor WebSocket (tu Ubuntu)', 'ws'], ['NIVEL CPU: ', 'level']],
 
@@ -76,13 +76,17 @@ const Game = {
     if (Input.once('Escape')) { Net.close(); this.goTitle(); return; }
     const local = this.online ? [Net.side] : this.mode === '2p' ? [0, 1] : this.mode === 'train' ? (this.sel.done[0] ? [1] : [0]) : [0];
     for (const p of local) {
-      const keys = (!this.online && p === 1 && this.mode !== 'train') ? ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ['Numpad1', 'KeyB', 'NumpadEnter']] : ['KeyA', 'KeyD', 'KeyW', 'KeyS', ['KeyJ', 'Enter', 'Space']];
+      // En 2 jugadores: P1 = WASD + J, P2 = flechas + Num1/B. En 1 jugador, entrenamiento y online el jugador local usa WASD o flechas, J o Enter.
+      const keys = (!this.online && p === 1 && this.mode !== 'train') ? [['ArrowLeft'], ['ArrowRight'], ['ArrowUp'], ['ArrowDown'], ['Numpad1', 'KeyB', 'NumpadEnter']]
+        : this.mode === '2p' ? [['KeyA'], ['KeyD'], ['KeyW'], ['KeyS'], ['KeyJ', 'Space']]
+        : [['KeyA', 'ArrowLeft'], ['KeyD', 'ArrowRight'], ['KeyW', 'ArrowUp'], ['KeyS', 'ArrowDown'], ['KeyJ', 'Enter', 'Space', 'NumpadEnter']];
+      const on = ks => ks.some(k => Input.once(k));
       if (!this.sel.done[p]) {
-        if (Input.once(keys[0])) this.moveCursor(p, -1, 0); if (Input.once(keys[1])) this.moveCursor(p, 1, 0);
-        if (Input.once(keys[2])) this.moveCursor(p, 0, -1); if (Input.once(keys[3])) this.moveCursor(p, 0, 1);
-        if (keys[4].some(k => Input.once(k))) this.confirmSel(p);
+        if (on(keys[0])) this.moveCursor(p, -1, 0); if (on(keys[1])) this.moveCursor(p, 1, 0);
+        if (on(keys[2])) this.moveCursor(p, 0, -1); if (on(keys[3])) this.moveCursor(p, 0, 1);
+        if (on(keys[4])) this.confirmSel(p);
         if (this.online && this.sel.t % 6 === 0) Net.send({ t: 'sel', i: this.sel.cur[p], done: false });
-      } else if (keys[4].some(k => Input.once(k)) && this.mode === '1p' && this.sel.done[1]) { /* nada */ }
+      }
     }
     if (this.mode === '1p' && this.sel.done[0] && !this.sel.done[1]) { if (this.sel.t % 4 === 0) this.sel.cur[1] = Math.floor(Math.random() * ROSTER.length); if (!this.sel.cpuT) this.sel.cpuT = this.sel.t + 60; if (this.sel.t >= this.sel.cpuT) { this.sel.done[1] = true; Audio.lick(ROSTER[this.sel.cur[1]].lick, 52); } }
     if (this.sel.done[0] && this.sel.done[1]) {
@@ -186,7 +190,7 @@ const Game = {
     const t = Render.t++;
     const g = ctx.createLinearGradient(0, 0, 960, 540); g.addColorStop(0, '#12082a'); g.addColorStop(1, '#2a0a1a'); ctx.fillStyle = g; ctx.fillRect(0, 0, 960, 540);
     ctx.textAlign = 'center'; ctx.fillStyle = '#ffd34d'; ctx.font = 'italic bold 30px Impact, Arial Black, Arial'; ctx.fillText('ELIGE TU TAXÓN', 480, 48);
-    ctx.fillStyle = '#aaa'; ctx.font = '12px Arial'; ctx.fillText(this.online ? 'Tú eres el jugador ' + (Net.side + 1) + ' · WASD mueve · J confirma · ping ' + Math.round(Net.rtt) + ' ms' : this.mode === 'train' ? (this.sel.done[0] ? 'Ahora elige al MUÑECO (WASD + J)' : 'Elige TU personaje (WASD + J) · luego el muñeco') : 'P1: WASD + J   ·   P2: flechas + Numpad1 (o B)   ·   Esc vuelve', 480, 70);
+    ctx.fillStyle = '#aaa'; ctx.font = '12px Arial'; ctx.fillText(this.online ? 'Tú eres el jugador ' + (Net.side + 1) + ' · WASD o flechas · J o Enter confirma · ping ' + Math.round(Net.rtt) + ' ms' : this.mode === 'train' ? (this.sel.done[0] ? 'Ahora elige al MUÑECO (WASD o flechas · J o Enter)' : 'Elige TU personaje (WASD o flechas · J o Enter) · luego el muñeco') : this.mode === '2p' ? 'P1: WASD + J   ·   P2: flechas + Numpad1 (o B)   ·   Esc vuelve' : 'WASD o flechas para moverte · J o Enter para confirmar · Esc vuelve', 480, 70);
     // grilla 9x2
     for (let i = 0; i < ROSTER.length; i++) {
       const r = ROSTER[i], col = i % 9, row = Math.floor(i / 9), x = 30 + col * 100, y = 120 + row * 100;
