@@ -2,7 +2,7 @@
 
 Juego de pelea 2D estilo Guilty Gear entre los 17 taxa de la clase *Acidithiobacillia* (Fig. 3A de Moya-Beltrán et al. 2021, ISME J 15:3221). Página web estática: corre en GitHub Pages sin ningún servidor, incluso el modo online de 2 jugadores.
 
-Versión 0.9.12 (oct 2026). Carpeta: `/Users/issotta/proyectos/acidgear`.
+Versión 0.9.13 (oct 2026). Carpeta: `/Users/issotta/proyectos/acidgear`.
 
 ---
 
