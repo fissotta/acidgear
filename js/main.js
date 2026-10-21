@@ -2,7 +2,7 @@
 const Game = {
   screen: 'title', canvas: null, ctx: null, acc: 0, last: 0, menuIdx: 0, level: 2, mode: '1p',
   sel: { cur: [0, 1], done: [false, false], t: 0 }, st: null, seed: 0, vsT: 0, online: false, netInfo: '',
-  VERSION: '0.9.11', VS_FRAMES: 300, // 5 s de pantalla VS con los controles
+  VERSION: '0.9.12', VS_FRAMES: 300, // 5 s de pantalla VS con los controles
   CONTROLS: [['Mover', 'A / D', '← / →'], ['Saltar', 'W', '↑'], ['Agacharse', 'S', '↓'], ['Golpe ligero', 'J', 'Num 1  (B)'], ['Golpe fuerte', 'K', 'Num 2  (N)'], ['Patada', 'L  (o I)', 'Num 3  (M)'], ['Especial', 'U', 'Num 5  (.)'], ['Overdrive (medidor 100 %)', 'O', 'Num 6  (/)'], ['Burst · Lysis Cancel', 'H', 'Num 0  (Shift der.)'], ['Dash', 'doble toque A/D', 'doble toque ←/→'], ['Bloquear', 'mantener atrás', 'mantener atrás'], ['Pausa', 'Enter', 'Enter'], ['Lanzador / Barrida', 'S + K  /  S + L', '↓ + Num2  /  ↓ + Num3'], ['LITHO RUSH (embestida)', 'D, D + K', '→, → + Num2'], ['PROTON SHOT (bola de ácido)', 'S, D + J  (↓↘→)', '↓, → + Num1']],
   MENU: [['1 JUGADOR vs CPU', '1p'], ['2 JUGADORES (mismo teclado)', '2p'], ['ENTRENAMIENTO (muñeco quieto)', 'train'], ['ONLINE sin servidor (WebRTC, código de sala)', 'peer'], ['ONLINE con servidor WebSocket (tu Ubuntu)', 'ws'], ['NIVEL CPU: ', 'level']],
 
@@ -17,6 +17,7 @@ const Game = {
     document.getElementById('btn-join').onclick = () => { const code = document.getElementById('join-code').value.trim().toUpperCase(); if (code.length === 4) Net.joinPeer(code); };
     document.getElementById('btn-ws').onclick = () => { const url = document.getElementById('ws-url').value.trim(); const room = document.getElementById('ws-room').value.trim() || 'sala1'; Net.connectWS(url, room); };
     document.getElementById('btn-back').onclick = () => { Net.close(); this.goTitle(); };
+    for (const b of document.querySelectorAll('#lobby button, #lobby input')) b.addEventListener('keydown', e => { if (e.code === 'Enter' && this.screen !== 'lobby') e.preventDefault(); });
     Net.onStatus = s => { document.getElementById('net-status').textContent = s; if (Net.connected && this.screen === 'lobby') this.goSelect(true); };
     Net.onMessage = d => this.onNet(d);
     document.getElementById('vol').oninput = e => Audio.setVolume(parseFloat(e.target.value));
@@ -64,13 +65,14 @@ const Game = {
 
   // ---------- selección ----------
   goSelect(online) {
-    this.online = online; this.screen = 'select'; this.overlay('lobby', false);
+    this.online = online; this.screen = 'select'; this.overlay('lobby', false); if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
     this.sel = { cur: [0, 12], done: [false, false], t: 0, remote: null }; Input.flush();
     if (Audio.ctx && !Audio.music.on) Audio.playMusic('menu', 3);
   },
   gridAt(x, y) { const col = Math.floor((x - 30) / 100), row = Math.floor((y - 120) / 100); if (col < 0 || col > 8 || row < 0 || row > 1) return -1; const i = row * 9 + col; return i < ROSTER.length ? i : -1; },
   moveCursor(p, dx, dy) { let i = this.sel.cur[p]; let col = i % 9, row = Math.floor(i / 9); col = (col + dx + 9) % 9; row = (row + dy + 2) % 2; let j = row * 9 + col; if (j >= ROSTER.length) j = dy ? (row === 1 ? 0 * 9 + col : ROSTER.length - 1) : (dx > 0 ? row * 9 : ROSTER.length - 1); this.sel.cur[p] = Math.min(j, ROSTER.length - 1); Audio.sfx('move'); },
   confirmSel(p) { if (this.sel.done[p]) return; this.sel.done[p] = true; Audio.lick(ROSTER[this.sel.cur[p]].lick, 52); if (this.online) Net.send({ t: 'sel', i: this.sel.cur[p], done: true }); },
+  SELECT_SECS: 30,
   updateSelect() {
     this.sel.t++;
     if (Input.once('Escape')) { Net.close(); this.goTitle(); return; }
@@ -85,23 +87,34 @@ const Game = {
         if (on(keys[0])) this.moveCursor(p, -1, 0); if (on(keys[1])) this.moveCursor(p, 1, 0);
         if (on(keys[2])) this.moveCursor(p, 0, -1); if (on(keys[3])) this.moveCursor(p, 0, 1);
         if (on(keys[4])) this.confirmSel(p);
-        if (this.online && this.sel.t % 6 === 0) Net.send({ t: 'sel', i: this.sel.cur[p], done: false });
       }
     }
+    // Tiempo máximo de elección: al llegar a 0 se confirma la casilla donde esté el cursor
+    const left = this.SELECT_SECS * 60 - this.sel.t;
+    if (left <= 0) for (const p of local) if (!this.sel.done[p]) this.confirmSel(p);
+    // Online: mando mi estado cada 10 frames (cursor y si ya confirmé), pase lo que pase, por si se pierde algún mensaje
+    if (this.online && this.sel.t % 10 === 0) Net.send({ t: 'sel', i: this.sel.cur[Net.side], done: this.sel.done[Net.side] });
     if (this.mode === '1p' && this.sel.done[0] && !this.sel.done[1]) { if (this.sel.t % 4 === 0) this.sel.cur[1] = Math.floor(Math.random() * ROSTER.length); if (!this.sel.cpuT) this.sel.cpuT = this.sel.t + 60; if (this.sel.t >= this.sel.cpuT) { this.sel.done[1] = true; Audio.lick(ROSTER[this.sel.cur[1]].lick, 52); } }
     if (this.sel.done[0] && this.sel.done[1]) {
       if (!this.sel.goT) this.sel.goT = this.sel.t + 40;
       if (this.sel.t >= this.sel.goT) {
-        if (this.online) { if (Net.side === 0) { const seed = (Date.now() & 0x7fffffff) >>> 0; const delay = Math.max(2, Math.min(8, Math.ceil(Net.rtt / 2 / 16.7) + 1)); Net.send({ t: 'start', seed, delay, ids: [ROSTER[this.sel.cur[0]].id, ROSTER[this.sel.cur[1]].id] }); this.startFight(seed, [ROSTER[this.sel.cur[0]].id, ROSTER[this.sel.cur[1]].id], delay); } }
+        if (this.online) {
+          if (Net.side === 0) { // el anfitrión decide semilla y retraso; repite el aviso cada 20 frames hasta que el invitado confirme
+            if (!this.sel.startMsg) { const seed = (Date.now() & 0x7fffffff) >>> 0; const delay = Math.max(2, Math.min(8, Math.ceil(Net.rtt / 2 / 16.7) + 1)); this.sel.startMsg = { t: 'start', seed, delay, ids: [ROSTER[this.sel.cur[0]].id, ROSTER[this.sel.cur[1]].id] }; }
+            if ((this.sel.t - this.sel.goT) % 20 === 0) Net.send(this.sel.startMsg);
+            if (this.sel.ack) { const m = this.sel.startMsg; this.startFight(m.seed, m.ids, m.delay); }
+          } // el invitado espera el 'start' del anfitrión (onNet)
+        }
         else this.startFight((Date.now() & 0x7fffffff) >>> 0, [ROSTER[this.sel.cur[0]].id, ROSTER[this.sel.cur[1]].id], 0);
       }
     }
   },
   onNet(d) {
-    if (d.t === 'sel') { const p = 1 - Net.side; this.sel.cur[p] = d.i; if (d.done) { if (!this.sel.done[p]) Audio.lick(ROSTER[d.i].lick, 52); this.sel.done[p] = true; } }
-    else if (d.t === 'start') { this.sel.done = [true, true]; this.startFight(d.seed, d.ids, d.delay); }
+    if (d.t === 'sel') { if (this.screen !== 'select') return; const p = 1 - Net.side; if (!this.sel.done[p]) this.sel.cur[p] = d.i; if (d.done && !this.sel.done[p]) { Audio.lick(ROSTER[d.i].lick, 52); this.sel.done[p] = true; } }
+    else if (d.t === 'start') { Net.send({ t: 'ack', seed: d.seed }); if (this.screen === 'select' && this.sel.startedSeed !== d.seed) { this.sel.startedSeed = d.seed; this.sel.done = [true, true]; this.startFight(d.seed, d.ids, d.delay); } }
+    else if (d.t === 'ack') { if (this.screen === 'select' && this.sel.startMsg && d.seed === this.sel.startMsg.seed) this.sel.ack = true; }
     else if (d.t === 'i') { Lockstep.onRemote(d.f, d.b); }
-    else if (d.t === 'rematch') { this.goSelect(true); }
+    else if (d.t === 'rematch') { if (this.screen !== 'select') this.goSelect(true); }
   },
 
   // ---------- pelea ----------
@@ -130,7 +143,8 @@ const Game = {
     }
     let bits;
     if (this.online) {
-      const r = Lockstep.tick(Input.read(0)); this.netInfo = 'ping ' + Math.round(Net.rtt) + ' ms · retraso ' + Lockstep.delay + ' f' + (Lockstep.stalled > 5 ? ' · esperando…' : '');
+      const r = Lockstep.tick(Input.read(0)); this.netInfo = 'ping ' + Math.round(Net.rtt) + ' ms · retraso ' + Lockstep.delay + ' f' + (Lockstep.stalled > 5 ? ' · esperando al rival…' : '') + (!Net.connected ? ' · SIN CONEXIÓN (Esc para salir)' : '');
+      if (!Net.connected && Input.once('Escape')) { Net.close(); this.goTitle(); return; }
       if (!r) return; bits = r;
     } else bits = [Input.read(0), this.mode === '2p' ? Input.read(1) : this.mode === 'train' ? (this.dummy === 0 ? 0 : this.dummy === 1 ? (st.f[1].face > 0 ? BTN.L : BTN.R) : CPU.decide(st, 1, this.level)) : CPU.decide(st, 1, this.level)];
     Engine.step(st, bits[0], bits[1]); Render.consume(st);
@@ -190,6 +204,8 @@ const Game = {
     const t = Render.t++;
     const g = ctx.createLinearGradient(0, 0, 960, 540); g.addColorStop(0, '#12082a'); g.addColorStop(1, '#2a0a1a'); ctx.fillStyle = g; ctx.fillRect(0, 0, 960, 540);
     ctx.textAlign = 'center'; ctx.fillStyle = '#ffd34d'; ctx.font = 'italic bold 30px Impact, Arial Black, Arial'; ctx.fillText('ELIGE TU TAXÓN', 480, 48);
+    { const left = Math.max(0, Math.ceil((this.SELECT_SECS * 60 - this.sel.t) / 60)); ctx.fillStyle = left <= 5 ? '#ff5a3a' : '#ffd34d'; ctx.font = 'bold 26px Arial'; ctx.fillText(left, 900, 48); ctx.fillStyle = '#888'; ctx.font = '10px Arial'; ctx.fillText('seg', 900, 60); }
+    if (this.online) { const p = 1 - Net.side; ctx.fillStyle = this.sel.done[p] ? '#b9ff3c' : '#ffd34d'; ctx.font = 'bold 12px Arial'; ctx.fillText('RIVAL: ' + (this.sel.done[p] ? 'LISTO (' + ROSTER[this.sel.cur[p]].id + ')' : 'eligiendo… (' + ROSTER[this.sel.cur[p]].id + ')') + (this.sel.done[0] && this.sel.done[1] ? (Net.side === 0 ? '  ·  iniciando…' : '  ·  esperando al anfitrión…') : ''), 480, 92); }
     ctx.fillStyle = '#aaa'; ctx.font = '12px Arial'; ctx.fillText(this.online ? 'Tú eres el jugador ' + (Net.side + 1) + ' · WASD o flechas · J o Enter confirma · ping ' + Math.round(Net.rtt) + ' ms' : this.mode === 'train' ? (this.sel.done[0] ? 'Ahora elige al MUÑECO (WASD o flechas · J o Enter)' : 'Elige TU personaje (WASD o flechas · J o Enter) · luego el muñeco') : this.mode === '2p' ? 'P1: WASD + J   ·   P2: flechas + Numpad1 (o B)   ·   Esc vuelve' : 'WASD o flechas para moverte · J o Enter para confirmar · Esc vuelve', 480, 70);
     // grilla 9x2
     for (let i = 0; i < ROSTER.length; i++) {

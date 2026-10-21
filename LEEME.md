@@ -2,7 +2,7 @@
 
 Juego de pelea 2D estilo Guilty Gear entre los 17 taxa de la clase *Acidithiobacillia* (Fig. 3A de Moya-Beltrán et al. 2021, ISME J 15:3221). Página web estática: corre en GitHub Pages sin ningún servidor, incluso el modo online de 2 jugadores.
 
-Versión 0.9.11 (oct 2026). Carpeta: `/Users/issotta/proyectos/acidgear`.
+Versión 0.9.12 (oct 2026). Carpeta: `/Users/issotta/proyectos/acidgear`.
 
 ---
 
@@ -78,6 +78,8 @@ wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudfla
 Imprime una URL tipo `https://algo-random.trycloudflare.com`. En el juego (desde GitHub Pages) pon `wss://algo-random.trycloudflare.com` como dirección. Alternativa: abrir el puerto 8787 en el router hacia el Ubuntu y usar la IP pública, pero sólo funciona con `ws://` si el juego se abre por `http://` (es decir, servido por el mismo Ubuntu, no por GitHub Pages).
 
 ## 5. Controles
+
+La selección de personaje dura como máximo 30 segundos (contador arriba a la derecha): al llegar a 0 se confirma la casilla donde esté el cursor.
 
 **Modo ENTRENAMIENTO** (en el menú del título): eliges tu personaje y luego el muñeco. El muñeco no se mueve (T lo cambia a *bloquea* o *CPU*), no hay tiempo ni KO, la vida se recupera sola y tu medidor está siempre al 100 % para practicar el Overdrive. R reinicia posiciones, M oculta/muestra la lista de movimientos, Esc sale.
 

@@ -13,7 +13,7 @@ const Net = {
     sc.onload = () => cb(); sc.onerror = () => this.status('No se pudo cargar PeerJS (sin Internet o CDN bloqueado). Usa el modo con servidor WebSocket.');
     document.head.appendChild(sc);
   },
-  hostPeer(code) { this.loadPeer(() => this._hostPeer(code)); },
+  hostPeer(code) { if (this.connected || this.peer) return; this.loadPeer(() => this._hostPeer(code)); },
   _hostPeer(code) {
     this.mode = 'peer'; this.side = 0; this.status('Creando sala ' + code + '…');
     this.peer = new Peer('acidgear-' + code, { debug: 0 });
@@ -21,7 +21,7 @@ const Net = {
     this.peer.on('connection', c => { this.conn = c; this.bindPeer(c); });
     this.peer.on('error', e => this.status('Error PeerJS: ' + e.type + (e.type === 'unavailable-id' ? ' (código en uso, prueba otro)' : '')));
   },
-  joinPeer(code) { this.loadPeer(() => this._joinPeer(code)); },
+  joinPeer(code) { if (this.connected || this.peer) return; this.loadPeer(() => this._joinPeer(code)); },
   _joinPeer(code) {
     this.mode = 'peer'; this.side = 1; this.status('Conectando a la sala ' + code + '…');
     this.peer = new Peer(undefined, { debug: 0 });
@@ -37,6 +37,7 @@ const Net = {
 
   // ---- Modo B: WebSocket contra tu servidor Ubuntu (server/server.js) ----
   connectWS(url, room) {
+    if (this.connected) return;
     this.mode = 'ws'; this.status('Conectando a ' + url + '…');
     try { this.ws = new WebSocket(url); } catch (e) { this.status('URL inválida: ' + e.message); return; }
     this.ws.onopen = () => { this.ws.send(JSON.stringify({ t: 'join', room })); };
