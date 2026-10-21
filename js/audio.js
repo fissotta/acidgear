@@ -53,12 +53,20 @@ const Audio = {
   // ---- compositor ----
   SCALES: { minor: [0, 2, 3, 5, 7, 8, 10], phrygian: [0, 1, 3, 5, 7, 8, 10] },
   KEYS: { E: 40, F: 41, G: 43, A: 45, B: 47, C: 48, D: 50 },
+  // Estilos: thrash (rápido, denso), gallop (galope a lo Iron Maiden), doom (lento y pesado), groove (sincopado), epic (lead siempre, acordes largos)
   compose(seed, st) {
     const rng = RNG.make(seed * 7919 + 13), sc = this.SCALES[st.scale || 'minor'], root = this.KEYS[st.key || 'E'];
-    const riff = () => { const r = []; for (let i = 0; i < 16; i++) { const v = rng.next(); r.push(v < 0.45 ? 0 : v < 0.6 ? -1 : sc[rng.int(sc.length)] + (rng.next() < 0.2 ? 12 : 0)); } r[0] = 0; return r; }; // 0 = raíz (palm mute), -1 = silencio
-    const lead = () => { const r = []; let cur = 7; for (let i = 0; i < 16; i++) { if (rng.next() < 0.35) { r.push(-1); continue; } cur = Math.max(0, Math.min(13, cur + rng.int(5) - 2)); const deg = sc[cur % 7] + 12 * Math.floor(cur / 7); r.push(deg); } return r; };
-    const prog = [0, 0, rng.next() < 0.5 ? 3 : 5, rng.next() < 0.5 ? 7 : 8]; // grados de la progresión (semitonos sobre la raíz)
-    return { root, sc, riffA: riff(), riffB: riff(), leadA: lead(), leadB: lead(), prog, tempo: st.tempo || 180, clean: !!st.clean, drumVar: rng.int(3) };
+    const style = st.style || ['thrash', 'gallop', 'doom', 'groove', 'epic'][rng.int(5)];
+    const dens = { thrash: 0.15, gallop: 0.1, doom: 0.45, groove: 0.35, epic: 0.25 }[style];
+    const riff = () => { const r = []; for (let i = 0; i < 16; i++) { const v = rng.next();
+      if (style === 'gallop') { r.push(i % 4 === 3 ? (rng.next() < 0.6 ? sc[rng.int(sc.length)] : 0) : 0); continue; }
+      if (style === 'groove' && (i === 2 || i === 6 || i === 10 || i === 13)) { r.push(-1); continue; }
+      r.push(v < dens ? -1 : v < dens + 0.4 ? 0 : sc[rng.int(sc.length)] + (rng.next() < 0.2 ? 12 : 0)); } r[0] = 0; return r; }; // 0 = raíz (palm mute), -1 = silencio
+    const lead = () => { const r = []; let cur = 7; for (let i = 0; i < 16; i++) { if (rng.next() < (style === 'epic' ? 0.2 : 0.35)) { r.push(-1); continue; } cur = Math.max(0, Math.min(13, cur + rng.int(5) - 2)); const deg = sc[cur % 7] + 12 * Math.floor(cur / 7); r.push(deg); } return r; };
+    const progs = [[0, 0, 3, 7], [0, 0, 5, 8], [0, 3, 5, 3], [0, 8, 7, 5], [0, 0, 1, 0], [0, 5, 3, 1]];
+    const prog = progs[rng.int(progs.length)];
+    const tempo = Math.round((st.tempo || 180) * { thrash: 1.05, gallop: 1.0, doom: 0.62, groove: 0.85, epic: 0.9 }[style]);
+    return { root, sc, riffA: riff(), riffB: riff(), riffC: riff(), leadA: lead(), leadB: lead(), prog, tempo, clean: !!st.clean, drumVar: rng.int(3), style, variant: rng.int(1000) };
   },
   playMusic(stageOrMenu, seed = 1) {
     this.init(); this.stopMusic();
@@ -75,21 +83,27 @@ const Audio = {
   },
   playStep(song, step, t, dt) {
     const bar = Math.floor(step / 16), i = step % 16, section = Math.floor(bar / 4) % 4, chordOff = song.prog[bar % 4];
-    const riff = section % 2 ? song.riffB : song.riffA, lead = section === 1 ? song.leadA : section === 3 ? song.leadB : null;
-    const n = riff[i], root = song.root + chordOff;
+    const riff = section === 3 ? song.riffC : section % 2 ? song.riffB : song.riffA, lead = song.style === 'epic' ? (section % 2 ? song.leadB : song.leadA) : section === 1 ? song.leadA : section === 3 ? song.leadB : null;
+    const n = riff[i], root = song.root + chordOff, sty = song.style;
     if (song.menu) { // versión limpia (menú / victoria): arpegios
       const arp = [0, 7, 12, 3, 7, 12, 15, 12][i % 8]; if (i % 2 === 0) this.gtr(root + arp + 12, t, dt * 2.5, true, 0.5);
       if (i === 0 || i === 8) this.bass(root, t, dt * 7); if (i % 4 === 0) this.kick(t, 0.5); if (i === 4 || i === 12) this.snare(t, 0.4); if (i % 2) this.hat(t, false);
       return;
     }
-    if (n === 0) this.chord(root, t, dt * 0.8, 0.9);            // palm mute en la raíz
-    else if (n > 0) this.chord(root + n, t, dt * 1.6, 1.0);     // nota del riff
-    if (i % 4 === 0 || n > 0) this.bass(root + (n > 0 ? n : 0), t, dt * 1.5);
+    const sus = sty === 'doom' ? 2.2 : sty === 'epic' ? 1.4 : 1;
+    if (n === 0) this.chord(root, t, dt * 0.8 * sus, 0.9);            // palm mute en la raíz
+    else if (n > 0) this.chord(root + n, t, dt * 1.6 * sus, 1.0);     // nota del riff
+    if (sty === 'epic' && i === 0) this.chord(root, t, dt * 14, 0.5);  // acorde sostenido de fondo
+    if (i % 4 === 0 || n > 0) this.bass(root + (n > 0 ? n : 0), t, dt * 1.5 * sus);
+    if (sty === 'groove' && (i === 3 || i === 11)) this.bass(root + 7, t, dt * 1.2);
     if (lead && lead[i] >= 0) this.gtr(root + 24 + lead[i], t, dt * 1.9, false, 0.55);
-    // batería: doble bombo en corcheas, caja en 2 y 4, hi-hat en semicorcheas
-    const dbl = song.drumVar === 0 ? (i % 2 === 0) : song.drumVar === 1 ? (i % 4 !== 3) : true;
+    // batería según estilo
+    if (sty === 'doom') { if (i === 0 || i === 8) this.kick(t, 1); if (i === 4 || i === 12) this.snare(t, 1); if (i % 4 === 0) this.hat(t, true); if (i === 0 && bar % 2 === 0) this.crash(t); return; }
+    if (sty === 'groove') { if ([0, 3, 6, 10].includes(i)) this.kick(t, 1); if (i === 4 || i === 12) this.snare(t, 1); if (i === 14) this.snare(t, 0.5); if (i % 2 === 0) this.hat(t, i === 14); if (i === 0 && bar % 4 === 0) this.crash(t); return; }
+    const dbl = sty === 'thrash' ? true : sty === 'gallop' ? (i % 4 !== 2) : song.drumVar === 0 ? (i % 2 === 0) : song.drumVar === 1 ? (i % 4 !== 3) : true;
     if (dbl) this.kick(t, i % 4 === 0 ? 1 : 0.7);
-    if (i === 4 || i === 12) this.snare(t, 1); if (section === 3 && i === 14) this.snare(t, 0.7);
+    if (i === 4 || i === 12) this.snare(t, 1); if (sty === 'thrash' && (i === 2 || i === 6 || i === 10 || i === 14) && section >= 2) this.snare(t, 0.9);
+    if (section === 3 && i === 14) this.snare(t, 0.7);
     this.hat(t, i === 14);
     if (i === 0 && bar % 4 === 0) this.crash(t);
   },

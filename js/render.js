@@ -5,9 +5,11 @@ const Render = {
   // Convierte eventos del motor en efectos visuales y sonidos
   consume(st) {
     for (const e of st.events) {
-      if (e.type === 'hit') { this.spark(e.x, e.y, e.str || 1, '#fff'); Audio.sfx('hit', { str: e.str }); if (e.combo >= 2) this.combo = { side: e.side, n: e.combo, dmg: e.dmg, t: 90, pop: 10 }; }
+      if (e.type === 'hit') { this.spark(e.x, e.y, e.str || 1, e.str >= 3 ? '#ffd34d' : e.str === 2 ? '#ffb070' : '#fff'); if (e.str >= 2) this.rays(e.x, e.y, e.str); Audio.sfx('hit', { str: e.str }); if (e.combo >= 2) this.combo = { side: e.side, n: e.combo, dmg: e.dmg, t: 90, pop: 10 }; }
       else if (e.type === 'block') { this.spark(e.x, e.y, 1, '#6cf'); Audio.sfx('block'); }
-      else if (e.type === 'special') { Audio.sfx('special'); }
+      else if (e.type === 'special') { Audio.sfx('special'); this.ring(e.x, 80, e.color || '#fff'); this.flashCol = { col: e.color || '#fff', t: 8 }; for (let i = 0; i < 10; i++) this.fx.push({ x: e.x + (Math.random() - 0.5) * 60, y: 20 + Math.random() * 140, vx: (Math.random() - 0.5) * 2, vy: 2 + Math.random() * 3, t: 20 + Math.random() * 15, col: e.color || '#fff', r: 3 }); }
+      else if (e.type === 'dash') { for (let i = 0; i < 8; i++) this.fx.push({ x: e.x - e.dir * 20, y: 4 + Math.random() * 10, vx: -e.dir * (1 + Math.random() * 3), vy: 0.5 + Math.random(), t: 18 + Math.random() * 10, col: 'rgba(230,220,200,0.8)', r: 5 + Math.random() * 5, dust: true }); }
+      else if (e.type === 'land') { for (let i = 0; i < 6 * e.str; i++) this.fx.push({ x: e.x, y: 2, vx: (Math.random() - 0.5) * 6 * e.str, vy: 0.5 + Math.random() * 1.5, t: 16 + Math.random() * 10, col: 'rgba(230,220,200,0.75)', r: 4 + Math.random() * 5, dust: true }); if (e.str > 1) Audio.sfx('block'); }
       else if (e.type === 'od') { this.flash = 14; this.banner = { text: e.name, sub: ROSTER_BY_ID[st.f[e.side].id].id + ' — OVERDRIVE', t: 110, col: ROSTER_BY_ID[st.f[e.side].id].c3 }; Audio.sfx('od'); }
       else if (e.type === 'ko') { this.banner = { text: e.winner === -1 ? 'DOBLE K.O.' : 'K.O.', sub: '', t: 150, col: '#ff3b3b' }; this.flash = 10; Audio.sfx('ko'); }
       else if (e.type === 'timeover') { this.banner = { text: 'TIME OVER', sub: e.winner === -1 ? 'EMPATE' : 'GANA ' + st.f[e.winner].id, t: 150, col: '#ffd34d' }; Audio.sfx('ko'); }
@@ -25,6 +27,7 @@ const Render = {
     }
   },
   spark(x, y, n, col) { for (let i = 0; i < 6 + n * 5; i++) { const a = Math.random() * 6.28, v = 2 + Math.random() * (3 + n * 2); this.fx.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 14 + Math.random() * 10, col, r: 2 + n }); } this.fx.push({ x, y, vx: 0, vy: 0, t: 8, col: '#fff', r: 10 + n * 10, star: true }); },
+  rays(x, y, n) { this.fx.push({ x, y, vx: 0, vy: 0, t: 10, col: '#fff', rays: true, r: 20 + n * 15 }); },
   ring(x, y, col) { this.fx.push({ x, y, vx: 0, vy: 0, t: 24, col, ring: true, r: 10 }); },
 
   sx(x) { return x - this.camX; }, sy(y) { return this.GY - y; },
@@ -55,11 +58,16 @@ const Render = {
     for (const e of this.fx) {
       e.t--; e.x += e.vx; e.y += e.vy; e.vy -= 0.1; ctx.fillStyle = e.col;
       if (e.ring) { ctx.strokeStyle = e.col; ctx.lineWidth = 6; ctx.globalAlpha = e.t / 24; ctx.beginPath(); ctx.arc(this.sx(e.x), this.sy(e.y), e.r + (24 - e.t) * 8, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; }
+      else if (e.rays) { ctx.strokeStyle = e.col; ctx.lineWidth = 3; ctx.globalAlpha = e.t / 10; for (let i = 0; i < 8; i++) { const a = i * 0.785 + 0.3; ctx.beginPath(); ctx.moveTo(this.sx(e.x) + Math.cos(a) * e.r * 0.5, this.sy(e.y) + Math.sin(a) * e.r * 0.5); ctx.lineTo(this.sx(e.x) + Math.cos(a) * e.r * (1 + (10 - e.t) * 0.25), this.sy(e.y) + Math.sin(a) * e.r * (1 + (10 - e.t) * 0.25)); ctx.stroke(); } ctx.globalAlpha = 1; }
       else if (e.star) { ctx.globalAlpha = e.t / 8; ctx.beginPath(); for (let i = 0; i < 8; i++) { const r = i % 2 ? e.r * 0.4 : e.r; ctx.lineTo(this.sx(e.x) + Math.cos(i * 0.785) * r, this.sy(e.y) + Math.sin(i * 0.785) * r); } ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1; }
+      else if (e.dust) { e.vy -= 0.08; ctx.globalAlpha = Math.min(1, e.t / 20) * 0.8; ctx.beginPath(); ctx.arc(this.sx(e.x), this.sy(e.y), e.r * (1 + (28 - e.t) * 0.03), 0, 7); ctx.fill(); ctx.globalAlpha = 1; }
       else { ctx.beginPath(); ctx.arc(this.sx(e.x), this.sy(e.y), Math.max(0.1, e.r * (e.t / 20)), 0, 7); ctx.fill(); }
     }
     ctx.restore();
     if (this.flash > 0) { this.flash--; ctx.fillStyle = `rgba(255,255,255,${this.flash / 20})`; ctx.fillRect(0, 0, W, H); }
+    if (this.flashCol && this.flashCol.t > 0) { this.flashCol.t--; ctx.globalAlpha = this.flashCol.t / 30; ctx.fillStyle = this.flashCol.col; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
+    // cinemática de Overdrive: durante el arranque se oscurece todo menos el que lo ejecuta
+    for (const f of st.f) if (f.st === 'attack' && f.move === 'OD' && f.spT && f.t < f.spT[0] + 4) { ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, W, H); ctx.save(); ctx.translate(shx, shy); FighterDraw.draw(ctx, f, this.t, this.sx(f.x), this.sy(f.y), 1.08); ctx.restore(); ctx.strokeStyle = ROSTER_BY_ID[f.id].c3; ctx.lineWidth = 6; ctx.globalAlpha = 0.6; for (let i = 0; i < 12; i++) { const a = i * 0.52 + this.t * 0.1; ctx.beginPath(); ctx.moveTo(this.sx(f.x) + Math.cos(a) * 90, this.sy(f.y + 80) + Math.sin(a) * 90); ctx.lineTo(this.sx(f.x) + Math.cos(a) * 600, this.sy(f.y + 80) + Math.sin(a) * 600); ctx.stroke(); } ctx.globalAlpha = 1; }
     this.hud(ctx, st, stage, opts);
   },
   proj(ctx, p) {
@@ -92,7 +100,7 @@ const Render = {
       const my = this.H - 34, mx = left ? 40 : W - 40 - 240;
       ctx.fillStyle = '#1a1018'; ctx.fillRect(mx - 2, my - 2, 244, 16);
       ctx.fillStyle = f.meter >= 100 ? '#ff4df0' : '#3af'; ctx.fillRect(left ? mx : mx + 240 - 240 * f.meter / 100, my, 240 * f.meter / 100, 12);
-      ctx.fillStyle = '#fff'; ctx.font = 'bold 11px Arial'; ctx.fillText(f.meter >= 100 ? 'OVERDRIVE LISTO (O)' : 'GRADIENTE DE PROTONES ' + Math.floor(f.meter) + '%', left ? mx : mx + 240, my - 6);
+      ctx.fillStyle = '#fff'; ctx.font = 'bold 11px Arial'; ctx.fillText(f.meter >= 100 ? 'OVERDRIVE LISTO (↓↘→ + O)' : 'GRADIENTE DE PROTONES ' + Math.floor(f.meter) + '%', left ? mx : mx + 240, my - 6);
       ctx.fillStyle = f.burst ? '#9ff' : '#333'; ctx.beginPath(); ctx.arc(left ? mx + 256 : mx - 16, my + 6, 8, 0, 7); ctx.fill();
       ctx.fillStyle = '#fff'; ctx.font = '9px Arial'; ctx.textAlign = 'center'; ctx.fillText('BURST', left ? mx + 256 : mx - 16, my + 24);
     };
@@ -123,7 +131,7 @@ const Render = {
       if (!tr.hideMoves) {
         const me = ROSTER_BY_ID[st.f[0].id];
         const L = [['LISTA DE MOVIMIENTOS', ''], ['J', 'golpe ligero'], ['K', 'golpe fuerte'], ['L / I', 'patada'], ['S + K', 'lanzador (antiaéreo)'], ['S + L', 'barrida'], ['salto + J/K/L', 'golpes aéreos (overhead)'],
-          ['D, D + K', 'LITHO RUSH (embestida con armadura)'], ['S, D + J', 'PROTON SHOT (bola de ácido)'], ['U', me.special.name], ['O (medidor 100 %)', me.od.name], ['H en tu ataque', 'Lysis Cancel'], ['H al recibir golpes', 'Burst de biofilm'], ['A, A / D, D', 'dash atrás / adelante'], ['', 'cadena: J → J → K → L → U → O'], ['W tras K / L / S+K', 'jump cancel: sigue en el aire con J/K/L']];
+          ['D, D + K', 'LITHO RUSH (embestida con armadura)'], ['S, D + J', 'PROTON SHOT (bola de ácido)'], ['S, D + K', 'ESPECIAL: ' + me.special.name], ['S, D + O (medidor 100 %)', 'OVERDRIVE: ' + me.od.name], ['H en tu ataque', 'Lysis Cancel'], ['H al recibir golpes', 'Burst de biofilm'], ['A, A / D, D', 'dash atrás / adelante'], ['', 'cadena: J → J → K → L → especial → overdrive'], ['W tras K / L / S+K', 'jump cancel: sigue en el aire con J/K/L']];
         const x = W - 40 - 330, y = 150; ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(x, y, 330, L.length * 17 + 12);
         L.forEach((r, i) => { const yy = y + 18 + i * 17; ctx.fillStyle = i === 0 ? '#ffd34d' : '#9ff'; ctx.font = i === 0 ? 'bold 12px Arial' : 'bold 12px Arial'; ctx.fillText(r[0], x + 10, yy); ctx.fillStyle = '#eee'; ctx.font = '12px Arial'; ctx.fillText(r[1], x + 130, yy); });
       }

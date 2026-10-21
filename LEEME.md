@@ -2,7 +2,7 @@
 
 Juego de pelea 2D estilo Guilty Gear entre los 17 taxa de la clase *Acidithiobacillia* (Fig. 3A de Moya-Beltrán et al. 2021, ISME J 15:3221). Página web estática: corre en GitHub Pages sin ningún servidor, incluso el modo online de 2 jugadores.
 
-Versión 0.9.13 (oct 2026). Carpeta: `/Users/issotta/proyectos/acidgear`.
+Versión 0.9.15 (oct 2026). Carpeta: `/Users/issotta/proyectos/acidgear`.
 
 ---
 
@@ -93,45 +93,47 @@ La selección de personaje dura como máximo 30 segundos (contador arriba a la d
 | Golpe ligero (LP) | J | Numpad 1 (o B) | X / □ |
 | Golpe fuerte (HP) | K | Numpad 2 (o N) | Y / △ (o RB) |
 | Patada (K) | L (o I) | Numpad 3 (o M) | A / ✕ |
-| Especial | U | Numpad 5 (o .) | B / ○ |
-| Overdrive (medidor al 100 %) | O | Numpad 6 (o /) | RT |
+| Especial | ↓ ↘ → + K (abajo, adelante, fuerte) | ↓ → + Numpad 2 | ↓↘→ + B / ○ |
+| Overdrive (medidor al 100 %) | ↓ ↘ → + O | ↓ → + Numpad 6 | ↓↘→ + RT |
 | Burst de biofilm / Lysis Cancel | H | Numpad 0 (o Shift der.) | LB |
 
 **Enter pausa** la pelea (local): la pantalla de pausa muestra las teclas, el especial, el Overdrive y los combos de los dos jugadores; Esc desde la pausa vuelve al título. Online y 1 jugador siempre usan los controles del jugador 1; en los menús y la selección de personaje de 1 jugador, entrenamiento y online sirven tanto WASD + J como flechas + Enter. En 2 jugadores, P1 elige con WASD + J y P2 con flechas + Numpad 1 (o B). Doble toque adelante/atrás = dash. Abajo + K (fuerte) = lanzador (antiaéreo). Abajo + L (patada) = barrida (baja). Golpes en el aire = overhead (hay que bloquear de pie). Bloqueo: mantener atrás; abajo+atrás bloquea bajos.
 
-Sistemas estilo GG: los golpes se cancelan en cadena ligero → ligero → fuerte → patada → Especial → Overdrive (gatling). Tras un fuerte, una patada o el lanzador (S+K) puedes saltar (W) y seguir el combo en el aire con J/K/L (jump cancel). El contador muestra los golpes y el daño acumulado. El **Gradiente de protones** (medidor) sube al pegar, bloquear y acercarse; al 100 % habilita el Overdrive (O). **Lysis Cancel** (H durante tu propio ataque, cuesta 50 %) cancela cualquier golpe. **Burst de biofilm** (H mientras te pegan, 1 por round) empuja al rival. Combos con escalado de daño.
+Sistemas estilo GG: los golpes se cancelan en cadena ligero → ligero → fuerte → patada → Especial (↓↘→ + K) → Overdrive (↓↘→ + O) (gatling). Los especiales y el Overdrive ya no salen con un solo botón: siempre llevan el cuarto de círculo adelante. Tras un fuerte, una patada o el lanzador (S+K) puedes saltar (W) y seguir el combo en el aire con J/K/L (jump cancel). El contador muestra los golpes y el daño acumulado. El **Gradiente de protones** (medidor) sube al pegar, bloquear y acercarse; al 100 % habilita el Overdrive (O). **Lysis Cancel** (H durante tu propio ataque, cuesta 50 %) cancela cualquier golpe. **Burst de biofilm** (H mientras te pegan, 1 por round) empuja al rival. Combos con escalado de daño.
 
 Formato: 3 rounds de 2:00, gana el que llega a 2. Escenario al azar entre 20 (aparece el lugar, pH y temperatura).
 
-## 6. Los 17 personajes y sus poderes
+## 6. Los 17 personajes, sus poderes y la biología real detrás
 
-| Sigla | Taxón | Especial (U) | Overdrive (O) |
-|---|---|---|---|
-| AFE | *A. ferrooxidans* | Rusticyanin Wave (proyectil) | Biolixiviación Total (rayo) |
-| AFG | *'A. ferruginosus'* | Ferruginous Slam (agarre con armadura) | Óxido Total |
-| AFD | *A. ferridurans* | Ferric Reduction (absorbe proyectiles y cura, contraataca) | Hydrogen Grab (ola que atrae) |
-| AFP | *A. ferriphilus* | Iron Hunger (agarre que drena vida) | Ferriphilus Crush |
-| AFV | *A. ferrivorans* | Permafrost Shield (proyectil que ralentiza) | Era Glacial |
-| AFN | *A. ferrianus* | pH 1.8 Hammer (uppercut invulnerable) | Hammer del Protón (3 golpes) |
-| ATH | *A. thiooxidans* | Sulfuric Rain (lluvia sobre el rival) | Tormenta de H₂SO₄ |
-| ASU | *'A. sulfurivorans'* | Stream Current (proyectil bajo) + doble salto | Crecida Ferruginosa |
-| ACO | *A. concretivorus* | Concrete Crumble (bloque que explota) | Colapso de Alcantarilla |
-| AMO | *'A. montserratensis'* | Pyroclastic Flow (ola de ceniza) | Soufrière Hills |
-| AMA | *'A. marinus'* | Tidal Salt Wave (ola que empuja a la esquina) | Tsunami Salino |
-| FCA | *F. caldus* | Thermal Burst (aura de 45 °C) | Tanque BIOX |
-| ICO | *'I. copahuensis'* | Erupción Copahue (columna de fumarola) | Géiser del Río Agrio |
-| IYE | Ca. *I. yellowstonensis* | Geyser Strike (géiser bajo el rival) | Old Faithful |
-| ITA | Ca. *I. taiwanensis* | Hot Spring Mist (teletransporte + tajo) | Niebla de Beitou (4 golpes) |
-| AMS | *'Am. sulfuriphilus'* | Nitrogenase Nova (rayo que neutraliza proyectiles) | N₂→NH₃ Overload |
-| TTP | *T. tepidarius* | Roman Bath Steam (puño de vapor) | cbb₃ Overload (3 golpes) |
+| Sigla | Taxón | Especial (↓↘→ + K) | Overdrive (↓↘→ + O) | Base biológica del poder |
+|---|---|---|---|---|
+| AFE | *A. ferrooxidans* | Rusticyanin Wave (proyectil) | Biolixiviación Total (rayo) | Oxida Fe²⁺ con rusticianina y cadena de transporte de electrones (Cyc2, rus): su "onda" es literalmente electrones de hierro; la biolixiviación disuelve minerales. |
+| AFG | *'A. ferruginosus'* CF3 | Ferruginous Slam (agarre con armadura) | Óxido Total | Hierro-oxidante; "ferruginosus" = herrumbroso. Los precipitados de hierro (jarosita/óxidos) son su armadura. |
+| AFD | *A. ferridurans* | Ferric Reduction (absorbe proyectiles y cura, contraataca) | Hydrogen Grab (ola que atrae) | Reduce Fe³⁺ en anaerobiosis (usa el hierro como aceptor de electrones) y oxida H₂ con hidrogenasas del grupo 1: "absorbe electrones" y se alimenta de hidrógeno. |
+| AFP | *A. ferriphilus* | Iron Hunger (agarre que drena vida) | Ferriphilus Crush | "Amante del hierro"; crecimiento lento y sin oxidasas *bd*: por eso es lento y pesado, y se alimenta drenando. |
+| AFV | *A. ferrivorans* | Permafrost Shield (proyectil que ralentiza) | Era Glacial | Psicrotolerante: crece a 4 °C en minas boreales (Noruega, Canadá). El frío es su arma. |
+| AFN | *A. ferrianus* | pH 1.8 Hammer (uppercut invulnerable) | Hammer del Protón (3 golpes) | pH óptimo de 1,8, uno de los más bajos del clado; rama basal del clado dual: el "martillo de protones" es su acidez récord. |
+| ATH | *A. thiooxidans* | Sulfuric Rain (lluvia sobre el rival) | Tormenta de H₂SO₄ | Oxida azufre elemental a ácido sulfúrico y tolera pH 0,5: literalmente hace llover H₂SO₄ (es el responsable de la corrosión biogénica). |
+| ASU | *'A. sulfurivorans'* RW2 | Stream Current (proyectil bajo) + doble salto | Crecida Ferruginosa | Aislado de un arroyo ácido ferruginoso en Gales: pelea con la corriente del arroyo. |
+| ACO | *A. concretivorus* | Concrete Crumble (bloque que explota) | Colapso de Alcantarilla | Aislado de hormigón corroído de alcantarillas (ex *Thiobacillus concretivorus*): el que se come el hormigón. |
+| AMO | *'A. montserratensis'* GG1-14 | Pyroclastic Flow (ola de ceniza) | Soufrière Hills | Aislado en la isla volcánica de Montserrat (volcán Soufrière Hills, erupciones con flujos piroclásticos). |
+| AMA | *'A. marinus'* SH | Tidal Salt Wave (ola que empuja) | Tsunami Salino | Aislado de agua de mar, halotolerante: único acidófilo del clado adaptado a la sal. |
+| FCA | *F. caldus* | Thermal Burst (aura de 45 °C) | Tanque BIOX | Termófilo moderado (óptimo 45 °C), azufre-oxidante dominante en tanques agitados de biooxidación (BIOX): quema por temperatura. |
+| ICO | *'I. copahuensis'* | Erupción Copahue (columna de fumarola) | Géiser del Río Agrio | Especie descrita a partir de ≥6 aislados del volcán Copahue (y Vulcano, Italia); termotolerante de sistemas geotermales. |
+| IYE | Ca. *I. yellowstonensis* | Geyser Strike (géiser bajo el rival) | Old Faithful | MAG de una laguna hidrotermal ácida de Yellowstone: géiseres. |
+| ITA | Ca. *I. taiwanensis* | Hot Spring Mist (teletransporte + tajo) | Niebla de Beitou | MAG de una termal ácida de Taiwán (zona de Beitou): la niebla de las termales. |
+| AMS | *'Am. sulfuriphilus'* | Nitrogenase Nova (rayo que neutraliza proyectiles) | N₂→NH₃ Overload | Fija N₂ (nitrogenasa NifHDK), crece de pH 3 a 7 (el más tolerante: "neutraliza" ácido) y tiene una variante propia de ATP sintasa. |
+| TTP | *T. tepidarius* | Roman Bath Steam (puño de vapor) | cbb₃ Overload (3 golpes) | Neutrófilo de 40–45 °C aislado de los Baños Romanos de Bath (UK); la única del grupo con oxidasa *cbb₃*; familia hermana (Thermithiobacillaceae): el "jefe" externo. |
+
+Comandos comunes a todos: Litho Rush (→ → + K, embestida con armadura) y Proton Shot (↓ ↘ → + J, bola de ácido): representan el gradiente de protones que todas estas bacterias mantienen a través de la membrana para sobrevivir a pH extremo.
 
 ## 6b. Fatalities
 
-Cuando la pelea termina por KO (no por tiempo), el perdedor queda de pie mareado con el cartel **¡LÍSALO!**, el ganador camina hacia él y ejecuta solo su remate (no hay que apretar nada). Cada taxón tiene el suyo: AFE Biolixiviación total (relámpagos de Fe³⁺ y se derrite) · AFG Prensa de óxido (lo aplasta) · AFD Reducción férrica (le roba los electrones y se desmorona gris) · AFP Hambre de hierro (lo drena hasta encogerlo) · AFV Cero absoluto (lo congela y lo rompe en pedazos) · AFN Martillo pH 1,8 (uppercut al cielo) · ATH Lluvia sulfúrica (lo derrite) · ASU Arrastre ferruginoso (la corriente se lo lleva) · ACO Entierro de hormigón (bloques encima) · AMO Flujo piroclástico (estatua de ceniza) · AMA Tsunami salino (se lo lleva la ola) · FCA Combustión a 45 °C (lo quema) · ICO Erupción del Copahue (columna de lava) · IYE Old Faithful (géiser) · ITA Niebla cortante (lo rebana) · AMS Nova de nitrógeno (lo vaporiza) · TTP Baño romano a presión (lo cuece al vapor hasta que revienta). El código está en `js/fatality.js`.
+Cuando la pelea termina por KO (no por tiempo), el perdedor queda de pie mareado con una frase al azar (**¡LÍSALO!**, **¡AUTOCLÁVALO!**, **¡CENTRIFÚGALO!**, **¡PIPETÉALO!**, **¡FÍLTRALO A 0,22 µm!**, **¡MÁNDALO AL DSMZ!**… 20 frases), el ganador camina hacia él y ejecuta solo un remate (no hay que apretar nada). La mitad de las veces es el remate propio del taxón y la otra mitad uno de laboratorio (Autoclave 121 °C, Centrífuga 13 000 × g, Pipeta P1000, Vórtex, Ultracongelador −80 °C, Luz UV 254 nm). Los remates propios: AFE Biolixiviación total (relámpagos de Fe³⁺ y se derrite) · AFG Prensa de óxido (lo aplasta) · AFD Reducción férrica (le roba los electrones y se desmorona gris) · AFP Hambre de hierro (lo drena hasta encogerlo) · AFV Cero absoluto (lo congela y lo rompe en pedazos) · AFN Martillo pH 1,8 (uppercut al cielo) · ATH Lluvia sulfúrica (lo derrite) · ASU Arrastre ferruginoso (la corriente se lo lleva) · ACO Entierro de hormigón (bloques encima) · AMO Flujo piroclástico (estatua de ceniza) · AMA Tsunami salino (se lo lleva la ola) · FCA Combustión a 45 °C (lo quema) · ICO Erupción del Copahue (columna de lava) · IYE Old Faithful (géiser) · ITA Niebla cortante (lo rebana) · AMS Nova de nitrógeno (lo vaporiza) · TTP Baño romano a presión (lo cuece al vapor hasta que revienta). El código está en `js/fatality.js`.
 
 ## 7. Música
 
-Toda la música y los efectos se sintetizan en el navegador con Web Audio (`js/audio.js`): guitarra distorsionada, bajo, doble bombo, lead. Cada escenario tiene tonalidad, escala y tempo propios (campo `key`, `scale`, `tempo` en `js/stages.js`) y el riff se genera con la semilla de la partida. El volumen está abajo a la derecha. Si quieres sumar canciones propias (como en Copahue FM), avísame y agrego una carpeta `music/` con lista `TRACKS` igual que `copahue-v8/js/radio.js`.
+Toda la música y los efectos se sintetizan en el navegador con Web Audio (`js/audio.js`): guitarra distorsionada, bajo, doble bombo, lead. Cada escenario tiene tonalidad, escala, tempo y **estilo** propios (`key`, `scale`, `tempo`, `style` en `js/stages.js`): *thrash* (rápido y denso: Vertiente del Agrio, Vulcano, Escondida, alcantarilla), *gallop* (galope: Río Tinto, Parys Mountain, Salto del Agrio), *doom* (lento y pesado: Richmond Mine, Talvivaara, Montserrat, solfataras), *groove* (sincopado: Bath, reactor BIOX, laboratorio, Río Agrio) y *epic* (acordes largos y lead continuo: laguna del cráter, Yellowstone, Lago Caviahue). Dentro de cada estilo, los riffs, la progresión de acordes y la batería se sortean con la semilla de cada pelea, así que nunca suena igual dos veces. El volumen está abajo a la derecha. Si quieres sumar canciones propias (como en Copahue FM), avísame y agrego una carpeta `music/` con lista `TRACKS` igual que `copahue-v8/js/radio.js`.
 
 ## 8. Estructura
 
@@ -154,6 +156,10 @@ server/server.js   servidor Node opcional (modo B)
 tools/serve.py     servidor local de prueba
 PLAN.md            plan de desarrollo
 ```
+
+## 8b. Modo demostración
+
+Si la pantalla de inicio queda 1 minuto sin que se toque nada, arranca sola una pelea CPU vs CPU (nivel difícil) con personajes y escenario al azar. Cualquier tecla, clic o movimiento del mouse vuelve al título.
 
 ## 9. Pendientes / ideas
 - Más animaciones por personaje (ahora comparten esqueleto y poses; cambian forma, color, accesorios y poderes).

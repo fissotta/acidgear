@@ -109,7 +109,7 @@ const Engine = {
     f.st = 'attack'; f.move = od ? 'OD' : 'SP'; f.t = 0; f.hitDone = false; f.sp = sp; f.spT = T; f.hitsLeft = sp.hits || 1; f.crouch = false;
     if (sp.armor) f.armor = T[0] + T[1];
     if (od) { f.meter = 0; f.inv = T[0] + 2; st.shake = 10; st.events.push({ type: 'od', side: f.side, name: sp.name, x: f.x }); }
-    else st.events.push({ type: 'special', side: f.side, x: f.x, kind: sp.kind });
+    else st.events.push({ type: 'special', side: f.side, x: f.x, kind: sp.kind, color: sp.color });
   },
 
   updateFighter(st, f, opp) {
@@ -173,7 +173,7 @@ const Engine = {
     // ---- aire ----
     if (f.st === 'jump' || air) {
       f.vy -= GRAV; f.y += f.vy; f.x += f.vx;
-      if (f.y <= 0) { f.y = 0; f.vy = 0; f.vx = 0; f.st = 'idle'; f.t = 0; return; }
+      if (f.y <= 0) { if (f.vy < -6) st.events.push({ type: 'land', x: f.x, str: f.vy < -12 ? 2 : 1 }); f.y = 0; f.vy = 0; f.vx = 0; f.st = 'idle'; f.t = 0; return; }
       if (this.pressed(f, BTN.U) && f.jumps > 0) { f.jumps--; f.vy = 13 * S.jmp; f.vx = holdF ? f.face * 4 : holdB ? -f.face * 4 : 0; }
       const at = buffered(); if (at && MOVES[at] && MOVES[at].air) { f.buf = null; this.tryAttack(st, f, opp, at); }
       return;
@@ -181,7 +181,7 @@ const Engine = {
 
     // ---- suelo ----
     f.crouch = !!holdD;
-    if (f.dashReq) { const d = f.dashReq; f.dashReq = 0; f.st = 'dash'; f.t = 0; f.vx = d === f.face ? 9 * spdMul * f.face : -7 * f.face; if (d !== f.face) f.inv = 6; return; }
+    if (f.dashReq) { const d = f.dashReq; f.dashReq = 0; f.st = 'dash'; f.t = 0; st.events.push({ type: 'dash', x: f.x, dir: d }); f.vx = d === f.face ? 9 * spdMul * f.face : -7 * f.face; if (d !== f.face) f.inv = 6; return; }
     const at = buffered();
     if (at && !(MOVES[at] && MOVES[at].air)) { f.buf = null; this.tryAttack(st, f, opp, at); return; }
     if (this.pressed(f, BTN.U) || (holdU && f.st !== 'jump' && f.t > 2 && f.y === 0 && f.prevU === false)) {
@@ -196,8 +196,9 @@ const Engine = {
   physicsOnlyOne(f) { if (f.y > 0 || f.vy > 0) { f.vy -= GRAV; f.y += f.vy; f.x += f.vx; if (f.y <= 0) { f.y = 0; f.vy = 0; f.vx = 0; } } },
 
   wantedAttack(st, f, air, holdD) {
-    if (this.pressed(f, BTN.OD) && f.meter >= MAX_METER && !air) return 'OD';
-    if (this.pressed(f, BTN.SP) && !air) return 'SP';
+    // Especial = ↓↘→ + fuerte (o botón B del mando con ↓↘→). Overdrive = ↓↘→ + O con el medidor lleno. Ya no salen con un solo botón.
+    if (this.pressed(f, BTN.OD) && f.meter >= MAX_METER && !air && this.qcf(f)) return 'OD';
+    if ((this.pressed(f, BTN.SP) || this.pressed(f, BTN.HP)) && !air && this.qcf(f)) return 'SP';
     if (air) { if (this.pressed(f, BTN.LP)) return 'jLP'; if (this.pressed(f, BTN.HP)) return 'jHP'; if (this.pressed(f, BTN.K)) return 'jK'; return null; }
     if (this.pressed(f, BTN.LP)) return this.qcf(f) ? 'SHOT' : 'LP';
     if (this.pressed(f, BTN.HP)) return holdD ? 'cHP' : 'HP';
@@ -213,18 +214,19 @@ const Engine = {
   // ---------- especiales ----------
   fireSpecial(st, f, opp) {
     const sp = f.sp, od = f.move === 'OD', P = ROSTER_BY_ID[f.id].stats.pow;
-    const base = { owner: f.side, dmg: sp.dmg * P, color: sp.color, hs: 20, bs: 12, kb: 8, hitIds: {} };
+    const base = { owner: f.side, dmg: sp.dmg * P / (sp.hits || 1), color: sp.color, hs: 20, bs: 12, kb: 8, hitIds: {} }; // multi-golpe: el daño total se reparte
     const add = (p) => st.proj.push(Object.assign({}, base, { hitIds: {} }, p));
     switch (sp.kind) {
       case 'proj': add({ kind: 'ball', x: f.x + f.face * 50, y: sp.low ? 20 : 80, vx: f.face * sp.speed, vy: 0, w: sp.size, h: sp.size, life: 140, low: !!sp.low }); break;
       case 'slowproj': add({ kind: 'ball', x: f.x + f.face * 50, y: 80, vx: f.face * sp.speed, vy: 0, w: sp.size, h: sp.size, life: 160, slow: sp.slow }); break;
       case 'column': { const cx = (sp.dist === -1 || sp.dist === 0) ? opp.x : f.x + f.face * sp.dist;
         add({ kind: 'column', x: cx, y: 0, vx: 0, vy: 0, w: sp.big ? 110 : 60, h: sp.big ? 320 : 240, life: od ? 40 : 26, warm: 10, hs: 28, kb: 2, launch: true }); break; }
-      case 'rain': for (let i = 0; i < sp.drops; i++) add({ kind: 'drop', x: opp.x + ((i % 2 ? 1 : -1) * Math.ceil(i / 2)) * 55 + (od ? (i % 3) * 20 : 0), y: 420 + i * 30, vx: 0, vy: -9, w: 18, h: 36, life: 120, hs: 14, bs: 8, kb: 2 }); break;
+      case 'rain': for (let i = 0; i < Math.min(sp.drops, 10); i++) add({ kind: 'drop', x: opp.x + ((i % 2 ? 1 : -1) * Math.ceil(i / 2)) * 55 + (od ? (i % 3) * 20 : 0), y: 420 + i * 30, vx: 0, vy: -9, w: 18, h: 36, life: 120, hs: 14, bs: 8, kb: 2 }); break;
       case 'wall': add({ kind: 'wall', x: f.x + f.face * (sp.big ? 170 : 130), y: 0, vx: 0, vy: 0, w: sp.big ? 110 : 70, h: sp.big ? 200 : 140, life: 100, fuse: 60, hs: 26, kb: 10, launch: true, solid: true }); break;
       case 'wave': add({ kind: 'wave', x: f.x + f.face * 60, y: 0, vx: f.face * sp.speed, vy: 0, w: 90, h: 210, life: 200, hs: 24, kb: sp.push ? 26 : 6, pull: !!sp.pull, slow: sp.slow || 0, launch: !sp.push }); break;
       case 'beam': { const len = f.face > 0 ? ARENA_W - f.x : f.x; add({ kind: 'beam', x: f.x + f.face * (len / 2 + 30), y: 60, vx: 0, vy: 0, w: len, h: 60, life: 6, hs: 26, kb: 14, launch: od });
         if (sp.neutralize || od) st.proj = st.proj.filter(p => p.owner === f.side); break; }
+      case 'upper': add({ kind: 'fist', x: f.x + f.face * 30, y: 20, vx: 0, vy: 0, w: 90, h: 170, life: 16, follow: f.side, off: f.face * 30, hs: 28, kb: 5, launch: true, hits: sp.hits || 1 }); break;
       case 'aura': f.auraT = sp.dur; break;
       case 'teleport': { f.x = Math.max(40, Math.min(ARENA_W - 40, opp.x - opp.face * 70)); f.face = opp.x >= f.x ? 1 : -1;
         add({ kind: 'slash', x: f.x + f.face * 50, y: 60, vx: 0, vy: 0, w: 90, h: 120, life: 8, hs: 22, kb: 6, hits: sp.hits || 1 }); st.events.push({ type: 'teleport', x: f.x, y: f.y }); break; }
@@ -319,7 +321,7 @@ const Engine = {
         if (this.overlap(box, qb) && p.kind === 'ball' && q.kind !== 'wave') { p.life = 0; q.life = 0; st.events.push({ type: 'hit', x: p.x, y: p.y, str: 1 }); }
       }
       // absorción (AFD): proyectiles enemigos cerca se destruyen y curan
-      if (def.absorbT > 0 && p.kind !== 'counter' && Math.abs(p.x - def.x) < 110) { p.life = 0; def.hp = Math.min(def.maxhp, def.hp + 60); def.meter = Math.min(MAX_METER, def.meter + 15); st.events.push({ type: 'absorb', x: def.x, y: 80 }); continue; }
+      if (def.absorbT > 0 && p.kind !== 'counter' && Math.abs(p.x - def.x) < 110) { p.life = 0; def.hp = Math.min(def.maxhp, def.hp + 40); def.meter = Math.min(MAX_METER, def.meter + 12); st.events.push({ type: 'absorb', x: def.x, y: 80 }); continue; }
       if (p.counterOnly) { // contraataque de AFD: pega sólo si el rival está atacando pegado
         if (!p.hitIds[0] && def.st === 'attack' && this.overlap(box, this.hurtbox(def)) && def.t > 2) { p.hitIds[0] = 1; this.applyHit(st, owner, def, p, def.x, 80, true); st.events.push({ type: 'counter', x: def.x, y: 90 }); }
         if (p.life > 0) keep.push(p); continue;

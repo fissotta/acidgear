@@ -3,6 +3,22 @@
 const Fatality = {
   t: 0, done: false, W: null, L: null, fat: null, parts: [], off: null, offCtx: null, shots: [],
   DIZZY: 110, ACT0: 175, ACT1: 345, END: 430,
+  PHRASES: ['¡LÍSALO!', '¡AUTOCLÁVALO!', '¡CENTRIFÚGALO!', '¡PRECIPÍTALO!', '¡DESNATURALÍZALO!', '¡PIPETÉALO!', '¡BIOLIXÍVIALO!', '¡ESTERILÍZALO!', '¡BÁJALE EL pH!', '¡AL VÓRTEX!', '¡FÍLTRALO A 0,22 µm!', '¡A −80 °C!', '¡SECUÉNCIALO!', '¡CONTAMÍNALO!', '¡OXÍDALO!', '¡QUE NO CREZCA MÁS!', '¡HAZLO CONTROL NEGATIVO!', '¡MÁNDALO AL DSMZ!', '¡REVISA SU PANGENOMA!', '¡AGÍTALO A 200 rpm!'],
+  // Remates de laboratorio (los puede hacer cualquiera): se sortean con el remate propio del personaje
+  LAB: {
+    AUTOCLAVE: { name: 'AUTOCLAVE 121 °C · 15 min', pose: ['attack', 'SP'], loser: (F, k) => { F.chamber(k); const u = Math.min(1, k * 1.4); F.steam(k); F.drawL({ tint: { c1: F.mix(F.rL.c1, '#ff6a3a', u), c2: F.mix(F.rL.c2, '#a01818', u) }, sx: 1 - u * 0.35, sy: 1 - u * 0.45, alpha: k > 0.9 ? (1 - k) * 10 : 1 }); } },
+    CENTRIFUGA: { name: 'CENTRÍFUGA 13 000 × g', pose: ['grab', null], loser: (F, k) => { if (k < 0.5) { F.drawL({ rot: k * k * 60, dx: Math.sin(k * 40) * 8 * k }); if (k > 0.2) F.sparks(F.L.x + (Math.random() - 0.5) * 80, 60 + Math.random() * 80, F.rL.c1, 1); } else { const u = (k - 0.5) / 0.5; F.drawL({ rot: 30 + u * 20, dx: F.dir * u * 900, dy: -u * 500, sx: 1 - u * 0.5, sy: 1 - u * 0.5 }); F.pellet(u); } } },
+    PIPETA: { name: 'PIPETA P1000', pose: ['attack', 'SP'], loser: (F, k) => { F.pipette(k); const u = Math.max(0, (k - 0.35) / 0.65); F.drawL({ dy: -u * 420, sx: 1 - u * 0.85, sy: 1 + u * 1.5, alpha: 1 - Math.max(0, u - 0.8) * 5 }); } },
+    VORTEX: { name: 'VÓRTEX A FONDO', pose: ['attack', 'SP'], loser: (F, k) => { F.vortexRings(k); if (k < 0.7) F.drawL({ dx: Math.sin(k * 90) * 14 * k, rot: Math.sin(k * 70) * 0.3, tint: null }); else F.drawL({ pieces: (k - 0.7) / 0.3, crumble: false, slices: false }); } },
+    FREEZER: { name: 'ULTRACONGELADOR −80 °C', pose: ['attack', 'SP'], loser: (F, k) => { if (k < 0.6) { F.iceBlock(k / 0.6); F.drawL({ tint: { c1: F.mix(F.rL.c1, '#dff6ff', k), c2: F.mix(F.rL.c2, '#8ac4e8', k), c3: '#fff', eye: '#dff' } }); } else { if (k < 0.63) F.shake(); F.drawL({ tint: { c1: '#dff6ff', c2: '#8ac4e8', c3: '#fff' }, pieces: (k - 0.6) / 0.4, shatter: true }); } } },
+    UV: { name: 'LUZ UV 254 nm', pose: ['attack', 'SP'], loser: (F, k) => { F.uvLight(k); const u = Math.min(1, k * 1.3); F.drawL({ tint: { c1: F.mix(F.rL.c1, '#ffffff', u), c2: F.mix(F.rL.c2, '#cccccc', u), c3: '#fff', eye: '#fff' }, alpha: k > 0.75 ? 1 - (k - 0.75) * 4 : 1 }); if (k > 0.75) F.sparks(F.L.x + (Math.random() - 0.5) * 50, 20 + Math.random() * 140, '#e8d0ff', 1); } }
+  },
+  chamber(k) { const ctx = this.ctx, X = Render.sx(this.L.x), Y = Render.sy(0); const h = Math.min(1, k * 3) * 210; ctx.fillStyle = 'rgba(160,170,180,0.55)'; ctx.strokeStyle = '#333'; ctx.lineWidth = 4; ctx.fillRect(X - 75, Y - h, 150, h); ctx.strokeRect(X - 75, Y - h, 150, h); ctx.fillStyle = '#222'; ctx.fillRect(X - 85, Y - h - 14, 170, 14); ctx.fillStyle = '#e44'; ctx.font = 'bold 14px monospace'; ctx.textAlign = 'center'; ctx.fillText((100 + Math.min(21, Math.floor(k * 40))) + ' °C', X, Y - h - 20); },
+  pellet(u) { const ctx = this.ctx; ctx.fillStyle = this.rL.c2; ctx.beginPath(); ctx.ellipse(Render.sx(this.L.x), Render.GY - 4, 22 * u, 8 * u, 0, 0, 7); ctx.fill(); },
+  pipette(k) { const ctx = this.ctx, X = Render.sx(this.L.x), top = -40 + Math.min(1, k * 3) * 60; ctx.fillStyle = '#eef'; ctx.strokeStyle = '#1a1018'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(X - 26, top); ctx.lineTo(X + 26, top); ctx.lineTo(X + 7, top + 230); ctx.lineTo(X - 7, top + 230); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#3a6fd6'; ctx.fillRect(X - 40, top - 70, 80, 80); ctx.strokeRect(X - 40, top - 70, 80, 80); ctx.fillStyle = '#fff'; ctx.font = 'bold 12px monospace'; ctx.textAlign = 'center'; ctx.fillText('1000 µL', X, top - 26); if (k > 0.35) { ctx.fillStyle = this.rL.c1; ctx.globalAlpha = 0.7; ctx.fillRect(X - 6, top + 80, 12, 150 * Math.min(1, (k - 0.35) * 2)); ctx.globalAlpha = 1; } },
+  vortexRings(k) { const ctx = this.ctx, X = Render.sx(this.L.x), Y = Render.sy(0); ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = 3; for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.ellipse(X, Y - 10 - i * 36, 50 + Math.sin(this.t * 0.6 + i) * 10, 10, 0, 0, 7); ctx.stroke(); } ctx.fillStyle = '#444'; ctx.fillRect(X - 50, Y - 2, 100, 14); ctx.fillStyle = '#e44'; ctx.fillRect(X + 30, Y + 2, 12, 6); },
+  iceBlock(k) { const ctx = this.ctx, X = Render.sx(this.L.x), Y = Render.sy(0); ctx.fillStyle = 'rgba(200,235,255,0.55)'; ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 3; const h = 200 * k; ctx.fillRect(X - 60, Y - h, 120, h); ctx.strokeRect(X - 60, Y - h, 120, h); ctx.fillStyle = '#fff'; ctx.font = 'bold 13px monospace'; ctx.textAlign = 'center'; ctx.fillText('−' + Math.floor(k * 80) + ' °C', X, Y - h - 8); },
+  uvLight(k) { const ctx = this.ctx, X = Render.sx(this.L.x); const g = ctx.createLinearGradient(0, 0, 0, Render.GY); g.addColorStop(0, 'rgba(140,60,220,0.7)'); g.addColorStop(1, 'rgba(140,60,220,0.05)'); ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(X - 30, 0); ctx.lineTo(X + 30, 0); ctx.lineTo(X + 130, Render.GY); ctx.lineTo(X - 130, Render.GY); ctx.fill(); ctx.fillStyle = '#222'; ctx.fillRect(X - 50, 0, 100, 12); ctx.fillStyle = '#c9f'; ctx.fillRect(X - 44, 10, 88, 4); },
 
   // ---- remates por personaje: name, pose del ganador y función que dibuja al perdedor durante el remate (k: 0→1) ----
   FATS: {
@@ -30,10 +46,13 @@ const Fatality = {
     this.W = { id: st.f[w].id, x: st.f[w].x, y: 0, face: st.f[l].x >= st.f[w].x ? 1 : -1, st: 'idle', t: 0, grow: 1, inv: 0 };
     this.L = { id: st.f[l].id, x: st.f[l].x, y: 0, face: -this.W.face, st: 'dizzy', t: 0, inv: 0 };
     this.rW = ROSTER_BY_ID[this.W.id]; this.rL = ROSTER_BY_ID[this.L.id]; this.dir = this.W.face;
-    this.L.x = Math.max(120, Math.min(ARENA_W - 120, this.L.x)); this.fat = this.FATS[this.W.id];
+    this.L.x = Math.max(120, Math.min(ARENA_W - 120, this.L.x));
+    const rng = RNG.make((st.seed ^ (st.frame * 2654435761)) >>> 0); const labKeys = Object.keys(this.LAB);
+    this.fat = this.force ? (this.LAB[this.force] || this.FATS[this.force]) : rng.next() < 0.5 ? this.FATS[this.W.id] : this.LAB[labKeys[rng.int(labKeys.length)]]; // force: sólo para pruebas
+    this.phrase = this.PHRASES[rng.int(this.PHRASES.length)];
     this.t = 0; this.done = false; this.parts = []; this.shots = []; this.shakeT = 0;
     if (!this.off) { this.off = document.createElement('canvas'); this.off.width = 360; this.off.height = 300; this.offCtx = this.off.getContext('2d'); }
-    Render.banner = { text: '¡LÍSALO!', sub: 'FATALITY', t: 100, col: '#ff3b3b', y: 130 }; Audio.sfx('round');
+    Render.banner = { text: this.phrase, sub: 'FATALITY', t: 100, col: '#ff3b3b', y: 130 }; Audio.sfx('round');
   },
   update() {
     this.t++; const t = this.t;

@@ -4,14 +4,14 @@ const BTN = { L: 1, R: 2, U: 4, D: 8, LP: 16, MP: 32, HP: 64, K: 128, SP: 256, O
 const KEYMAPS = [
   { // Jugador 1
     KeyA: BTN.L, KeyD: BTN.R, KeyW: BTN.U, KeyS: BTN.D,
-    KeyJ: BTN.LP, KeyK: BTN.HP, KeyL: BTN.K, KeyI: BTN.K, KeyU: BTN.SP, KeyO: BTN.OD, KeyH: BTN.BURST,
+    KeyJ: BTN.LP, KeyK: BTN.HP, KeyL: BTN.K, KeyI: BTN.K, KeyO: BTN.OD, KeyH: BTN.BURST,
     Enter: BTN.START
   },
   { // Jugador 2
     ArrowLeft: BTN.L, ArrowRight: BTN.R, ArrowUp: BTN.U, ArrowDown: BTN.D,
-    Numpad1: BTN.LP, Numpad2: BTN.HP, Numpad3: BTN.K, Numpad4: BTN.K, Numpad5: BTN.SP, Numpad6: BTN.OD, Numpad0: BTN.BURST,
+    Numpad1: BTN.LP, Numpad2: BTN.HP, Numpad3: BTN.K, Numpad4: BTN.K, Numpad6: BTN.OD, Numpad0: BTN.BURST,
     // alternativa sin teclado numérico
-    KeyB: BTN.LP, KeyN: BTN.HP, KeyM: BTN.K, Comma: BTN.K, Period: BTN.SP, Slash: BTN.OD, ShiftRight: BTN.BURST,
+    KeyB: BTN.LP, KeyN: BTN.HP, KeyM: BTN.K, Comma: BTN.K, Slash: BTN.OD, ShiftRight: BTN.BURST,
     NumpadEnter: BTN.START
   }
 ];
